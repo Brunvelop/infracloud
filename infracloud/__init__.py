@@ -19,6 +19,9 @@ Or via CLI:
 
 __version__ = "0.1.0"
 
+from infracloud.stack import Stack
+
 # Populated in later commits:
 # from infracloud.cloud import InfraCloud, Server
-# from infracloud.stack import Stack
+
+__all__ = ["Stack", "__version__"]
