@@ -270,14 +270,20 @@ class InfraCloud:
         """
         disk_gb = stack.disk_gb
 
-        click.echo(f"🔍 Buscando GPU con ≥{stack.gpu_vram_gb}GB VRAM...")
+        cuda_msg = (
+            f" y CUDA ≥{stack.min_cuda_ver}" if stack.min_cuda_ver else ""
+        )
+        click.echo(f"🔍 Buscando GPU con ≥{stack.gpu_vram_gb}GB VRAM{cuda_msg}...")
 
         # gpu_ram: pass in GB — the SDK multiplies by 1000 internally
         # disk_space: pass in GB directly
+        # cuda_max_good: driver's max supported CUDA version (decimal, e.g. 12.9)
         query = (
             f"gpu_ram >= {stack.gpu_vram_gb} "
             f"disk_space >= {disk_gb}"
         )
+        if stack.min_cuda_ver is not None:
+            query += f" cuda_max_good >= {stack.min_cuda_ver}"
 
         offers = self._vastai.search_offers(
             query=query,

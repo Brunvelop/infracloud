@@ -72,6 +72,11 @@ class Stack:
         health_port:  Which port from `ports` to use for the health check.
                       Defaults to the first port in `ports` if not set.
         env:          Extra environment variables to set on the instance.
+        min_cuda_ver: Minimum CUDA version required by the Docker image
+                      (e.g. ``12.9`` for a ``cuda-12.9`` image). When set,
+                      only Vast.ai hosts whose driver supports at least this
+                      CUDA version will be considered. Leave as ``None`` to
+                      accept any host.
     """
 
     name: str
@@ -83,6 +88,7 @@ class Stack:
     health_url: str = "/health"
     health_port: int | None = None
     env: dict[str, str] = field(default_factory=dict)
+    min_cuda_ver: float | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
