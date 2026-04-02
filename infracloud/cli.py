@@ -42,8 +42,8 @@ def _require_state() -> dict:
 
 
 def _build_url(state: dict) -> str:
-    """Build the primary HTTP URL from state (ssh_host + first api_port)."""
-    host = state["ssh_host"]
+    """Build the primary HTTP URL from state (public_ip + first api_port)."""
+    host = state.get("public_ip") or state["ssh_host"]  # fallback for old state
     first_port = next(iter(state["api_ports"].values()))
     return f"http://{host}:{first_port}"
 

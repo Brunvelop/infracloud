@@ -70,18 +70,19 @@ class Server:
     stack_name: str
     ssh_host: str
     ssh_port: int
+    public_ip: str
     api_ports: dict[str, int]
     cost_per_hr: float
     gpu_name: str
 
     @property
     def url(self) -> str:
-        """Base URL of the first exposed port.
+        """Base URL of the first exposed port (direct public IP).
 
-        Example: ``http://ssh5.vast.ai:38291``
+        Example: ``http://175.155.64.174:19260``
         """
         first_external = next(iter(self.api_ports.values()))
-        return f"http://{self.ssh_host}:{first_external}"
+        return f"http://{self.public_ip}:{first_external}"
 
     @property
     def ssh_command(self) -> str:
@@ -160,11 +161,12 @@ class InfraCloud:
         # 4. Extract connection details from instance metadata
         ssh_host = instance["ssh_host"]
         ssh_port = int(instance["ssh_port"])
+        public_ip = instance["public_ipaddr"]   # direct access IP
         api_ports = self._extract_ports(instance, stack)
         cost_per_hr = float(instance.get("dph_total", 0.0))
         gpu_name = instance.get("gpu_name", "")
 
-        # 5. Health poll
+        # 5. Health poll — use public_ip for direct HTTP access (not SSH proxy)
         health_port = api_ports.get(str(stack.effective_health_port))
         if health_port is None:
             # fall back to first mapped port
@@ -174,7 +176,7 @@ class InfraCloud:
             "⏳ Esperando a que el servidor esté listo... "
             "(esto puede tardar varios minutos)"
         )
-        self._wait_for_health(ssh_host, health_port, stack.health_url)
+        self._wait_for_health(public_ip, health_port, stack.health_url)
 
         # 6. Persist state and return handle
         state = {
@@ -182,6 +184,7 @@ class InfraCloud:
             "stack_name": stack.name,
             "ssh_host": ssh_host,
             "ssh_port": ssh_port,
+            "public_ip": public_ip,
             "api_ports": api_ports,
             "cost_per_hr": cost_per_hr,
             "gpu_name": gpu_name,
@@ -194,6 +197,7 @@ class InfraCloud:
             stack_name=stack.name,
             ssh_host=ssh_host,
             ssh_port=ssh_port,
+            public_ip=public_ip,
             api_ports=api_ports,
             cost_per_hr=cost_per_hr,
             gpu_name=gpu_name,
