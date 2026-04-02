@@ -261,16 +261,22 @@ class InfraCloud:
         return resolved
 
     def _find_offer(self, stack: Stack) -> dict:
-        """Search Vast.ai for the cheapest offer matching the stack's requirements."""
-        vram_mb = stack.gpu_vram_gb * 1024
+        """Search Vast.ai for the cheapest offer matching the stack's requirements.
+
+        Note: the vastai-sdk ``parse_query`` function multiplies ``gpu_ram``
+        values by 1000 (it expects GB, not MB).  ``disk_space`` is passed
+        as-is in GB.  ``rentable = true`` is already included in the default
+        query so we don't need to specify it.
+        """
         disk_gb = stack.disk_gb
 
         click.echo(f"🔍 Buscando GPU con ≥{stack.gpu_vram_gb}GB VRAM...")
 
+        # gpu_ram: pass in GB — the SDK multiplies by 1000 internally
+        # disk_space: pass in GB directly
         query = (
-            f"gpu_ram >= {vram_mb} "
-            f"disk_space >= {disk_gb} "
-            f"rentable = true"
+            f"gpu_ram >= {stack.gpu_vram_gb} "
+            f"disk_space >= {disk_gb}"
         )
 
         offers = self._vastai.search_offers(
