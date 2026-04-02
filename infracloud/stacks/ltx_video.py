@@ -181,7 +181,7 @@ ltx_video = Stack(
     # vastai/base-image variants are pre-cached on Vast.ai hosts -> faster startup
     image="vastai/base-image:cuda-12.4.1-cudnn-devel-ubuntu22.04",
     gpu_vram_gb=24,    # LTX-Video needs ~18 GB for standard resolution inference
-    disk_gb=60,        # ~10 GB model weights + Python deps + output buffer
+    disk_gb=100,       # ~15 GB model + ~15 GB torch/deps + buffer for output videos
     ports=[5000],
     onstart=_ONSTART,
     health_url="/health",

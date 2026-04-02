@@ -48,3 +48,4 @@ def get(name: str) -> Stack | None:
 # stack module imports `register` from this file.
 
 from infracloud.stacks import ltx_video as _ltx_video  # noqa: E402, F401
+from infracloud.stacks import comfyui as _comfyui      # noqa: E402, F401
