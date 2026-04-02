@@ -21,8 +21,6 @@ __version__ = "0.1.0"
 
 from infracloud.stack import Stack
 from infracloud.state import save_state, load_state, clear_state
+from infracloud.cloud import InfraCloud, Server
 
-# Populated in later commits:
-# from infracloud.cloud import InfraCloud, Server
-
-__all__ = ["Stack", "save_state", "load_state", "clear_state", "__version__"]
+__all__ = ["Stack", "InfraCloud", "Server", "save_state", "load_state", "clear_state", "__version__"]
