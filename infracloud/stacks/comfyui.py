@@ -65,7 +65,8 @@ echo "[infracloud] Models directory: /ComfyUI/models/"
 comfyui = Stack(
     name="comfyui",
     # Official Vast.ai ComfyUI image — pre-built, no install needed
-    image="vastai/comfy:latest",
+    # (vastai/comfy has no :latest tag; use the most recent versioned tag)
+    image="vastai/comfy:v0.18.2-cuda-12.9-py312",
     gpu_vram_gb=32,    # 32 GB minimum — required for LTX-Video and comfortable for SDXL/Flux
     disk_gb=100,       # Models can be large: SDXL ~7GB, Flux ~24GB, etc.
     ports=[8188],

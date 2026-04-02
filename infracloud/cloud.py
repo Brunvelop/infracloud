@@ -41,7 +41,7 @@ load_dotenv()
 # ─── Timeouts & polling intervals ────────────────────────────────────────────
 
 _INSTANCE_POLL_INTERVAL = 5     # seconds between "is instance running?" polls
-_INSTANCE_READY_TIMEOUT = 300   # 5 min max to go from created → running
+_INSTANCE_READY_TIMEOUT = 900   # 15 min max to go from created → running
 _HEALTH_POLL_INTERVAL   = 10    # seconds between health-check requests
 _HEALTH_READY_TIMEOUT   = 600   # 10 min max for the server to become healthy
 
