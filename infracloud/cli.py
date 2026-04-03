@@ -92,11 +92,24 @@ def cli() -> None:
     default=None,
     help="Override de disco en GB (ej: --disk 100).",
 )
-def up(stack: str, vram: int | None, disk: int | None) -> None:
+@click.option(
+    "--offer",
+    type=int,
+    default=None,
+    help=(
+        "ID de oferta Vast.ai a usar directamente (salta la búsqueda automática). "
+        "Útil para seleccionar una máquina específica desde la UI de Vast.ai."
+    ),
+)
+def up(stack: str, vram: int | None, disk: int | None, offer: int | None) -> None:
     """Lanza un servidor GPU y espera a que esté listo.
 
     STACK puede ser el nombre de un stack built-in (ej: ltx-video) o la ruta
     a un archivo YAML que define un stack personalizado (ej: ./mi-stack.yaml).
+
+    Para usar una oferta específica de Vast.ai (por ejemplo elegida desde la UI):
+
+        infracloud up ltx-video --offer 12345678
     """
     from infracloud.cloud import InfraCloud
     from infracloud.stack import Stack
@@ -123,7 +136,7 @@ def up(stack: str, vram: int | None, disk: int | None) -> None:
 
     try:
         cloud = InfraCloud()
-        server = cloud.up(stack_arg, **overrides)
+        server = cloud.up(stack_arg, offer_id=offer, **overrides)
     except RuntimeError as exc:
         click.echo(f"\n✗ {exc}", err=True)
         sys.exit(1)

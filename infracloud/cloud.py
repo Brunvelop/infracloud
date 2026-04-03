@@ -122,12 +122,21 @@ class InfraCloud:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def up(self, stack: Stack | str, **overrides) -> Server:
+    def up(
+        self,
+        stack: Stack | str,
+        offer_id: int | None = None,
+        **overrides,
+    ) -> Server:
         """Launch a GPU server and block until it's healthy.
 
         Args:
-            stack:     A :class:`Stack` instance, or the name of a built-in
-                       stack (e.g. ``"ltx-video"``).
+            stack:      A :class:`Stack` instance, or the name of a built-in
+                        stack (e.g. ``"ltx-video"``).
+            offer_id:   Optional Vast.ai offer ID to use directly, skipping the
+                        automatic search. Useful when you've found a suitable
+                        machine via the Vast.ai UI or ``search_offers`` yourself.
+                        Example: ``cloud.up("ltx-video", offer_id=12345678)``
             **overrides: Optional field overrides applied to the resolved Stack
                          before launching (e.g. ``gpu_vram_gb=48``).
 
@@ -141,8 +150,12 @@ class InfraCloud:
         """
         stack = self._resolve_stack(stack, overrides)
 
-        # 1. Find cheapest matching GPU offer
-        offer = self._find_offer(stack)
+        # 1. Find cheapest matching GPU offer (or use the specified offer_id)
+        if offer_id is not None:
+            click.echo(f"🔍 Buscando oferta {offer_id}...")
+            offer = self._fetch_offer_by_id(offer_id)
+        else:
+            offer = self._find_offer(stack)
         click.echo(
             f"✓ Encontrada: {offer['gpu_name']} · "
             f"${offer['dph_total']:.2f}/hr · "
@@ -264,6 +277,30 @@ class InfraCloud:
 
         return resolved
 
+    def _fetch_offer_by_id(self, offer_id: int) -> dict:
+        """Fetch a single Vast.ai offer by its ID.
+
+        Args:
+            offer_id: The Vast.ai offer/machine ID visible in the UI.
+
+        Returns:
+            The offer dict (same structure as returned by ``search_offers``).
+
+        Raises:
+            RuntimeError: If no offer with that ID is found.
+        """
+        offers = self._vastai.search_offers(
+            query=f"id = {offer_id}",
+            order="dph_total",
+            type="on-demand",
+        )
+        if not offers:
+            raise RuntimeError(
+                f"No se encontró ninguna oferta con ID {offer_id}. "
+                "Comprueba que el ID es correcto y que la máquina está disponible."
+            )
+        return offers[0]
+
     def _find_offer(self, stack: Stack) -> dict:
         """Search Vast.ai for the cheapest offer matching the stack's requirements.
 
@@ -365,6 +402,15 @@ class InfraCloud:
             status = instance.get("actual_status", "")
             if status == "running":
                 return instance
+
+            # Detect GPU / provisioning errors early — no need to wait 15 min
+            if "error" in status.lower():
+                raise RuntimeError(
+                    f"La instancia {instance_id} entró en estado de error: "
+                    f"'{status}'. La máquina puede estar averiada. "
+                    "Prueba con otra oferta (--offer) o deja que la búsqueda "
+                    "automática seleccione una diferente."
+                )
 
             elapsed = time.monotonic() - (deadline - _INSTANCE_READY_TIMEOUT)
             click.echo(
