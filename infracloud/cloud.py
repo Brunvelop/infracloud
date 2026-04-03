@@ -406,7 +406,7 @@ class InfraCloud:
                 time.sleep(_INSTANCE_POLL_INTERVAL)
                 continue
 
-            status = instance.get("actual_status", "")
+            status = instance.get("actual_status") or ""
             if status == "running":
                 return instance
 
