@@ -97,8 +97,8 @@ def cli() -> None:
     type=int,
     default=None,
     help=(
-        "ID de oferta Vast.ai a usar directamente (salta la búsqueda automática). "
-        "Útil para seleccionar una máquina específica desde la UI de Vast.ai."
+        "Machine ID de Vast.ai a usar directamente (el número m:XXXX que aparece "
+        "en la UI). Salta la búsqueda automática. Ejemplo: --offer 37509"
     ),
 )
 def up(stack: str, vram: int | None, disk: int | None, offer: int | None) -> None:

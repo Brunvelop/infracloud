@@ -277,27 +277,34 @@ class InfraCloud:
 
         return resolved
 
-    def _fetch_offer_by_id(self, offer_id: int) -> dict:
-        """Fetch a single Vast.ai offer by its ID.
+    def _fetch_offer_by_id(self, machine_id: int) -> dict:
+        """Fetch a Vast.ai offer by machine ID (the ``m:XXXX`` number in the UI).
+
+        Note: Vast.ai distinguishes between *offer_id* (used internally to create
+        instances) and *machine_id* (the physical host ID shown in the UI as
+        ``m:XXXX``).  This method accepts the machine_id and returns the offer
+        with the matching machine, ready to be passed to ``_create_instance``.
 
         Args:
-            offer_id: The Vast.ai offer/machine ID visible in the UI.
+            machine_id: The machine ID shown in the Vast.ai UI (e.g. 37509 for
+                        ``m:37509``).  Passed via ``--offer`` on the CLI.
 
         Returns:
-            The offer dict (same structure as returned by ``search_offers``).
+            The offer dict (same structure as returned by ``_find_offer``).
 
         Raises:
-            RuntimeError: If no offer with that ID is found.
+            RuntimeError: If no rentable offer is found for that machine ID.
         """
         offers = self._vastai.search_offers(
-            query=f"id = {offer_id}",
+            query=f"machine_id = {machine_id}",
             order="dph_total",
             type="on-demand",
         )
         if not offers:
             raise RuntimeError(
-                f"No se encontró ninguna oferta con ID {offer_id}. "
-                "Comprueba que el ID es correcto y que la máquina está disponible."
+                f"No se encontró ninguna oferta disponible para la máquina {machine_id} "
+                f"(m:{machine_id}). Comprueba que la máquina está verificada y disponible "
+                "para renta on-demand."
             )
         return offers[0]
 
