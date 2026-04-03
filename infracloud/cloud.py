@@ -43,7 +43,7 @@ load_dotenv()
 _INSTANCE_POLL_INTERVAL = 5     # seconds between "is instance running?" polls
 _INSTANCE_READY_TIMEOUT = 900   # 15 min max to go from created → running
 _HEALTH_POLL_INTERVAL   = 10    # seconds between health-check requests
-_HEALTH_READY_TIMEOUT   = 600   # 10 min max for the server to become healthy
+_HEALTH_READY_TIMEOUT   = 900   # 15 min max for the server to become healthy
 
 
 # ─── Server ──────────────────────────────────────────────────────────────────
@@ -315,12 +315,17 @@ class InfraCloud:
 
         result = self._vastai.create_instance(
             id=int(offer["id"]),
-            image=stack.image,
+            # When the stack ships a template_hash (Vast.ai official images with
+            # @vastai-automatic-tag), let the template resolve the image tag so
+            # Vast.ai can pick the right CUDA variant for the target host.
+            # In that case we pass image=None so the template takes over.
+            image=None if stack.template_hash else stack.image,
             disk=float(stack.disk_gb),
             onstart_cmd=stack.onstart if stack.onstart else None,
             env=env_str,
             ssh=True,
             direct=True,
+            template_hash=stack.template_hash,
         )
 
         # result is a Response object or dict; SDK returns r.json() when raw=True

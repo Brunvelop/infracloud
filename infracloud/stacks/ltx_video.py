@@ -33,14 +33,15 @@ _ONSTART = r"""#!/bin/bash
 set -e
 
 echo "[infracloud] Installing dependencies..."
+# vastai/pytorch image ships torch+torchvision pre-installed in /venv/main
 source /venv/main/bin/activate
 pip install --quiet --upgrade \
-    torch \
-    torchvision \
     diffusers \
     transformers \
     accelerate \
     sentencepiece \
+    protobuf \
+    tiktoken \
     fastapi \
     "uvicorn[standard]" \
     imageio \
@@ -85,7 +86,6 @@ async def lifespan(app: FastAPI):
         torch_dtype=torch.bfloat16,
     )
     _pipe = _pipe.to("cuda")
-    _pipe.enable_model_cpu_offload()
     _model_ready = True
     print("[serve] Model ready.")
     yield
@@ -178,13 +178,19 @@ python /workspace/serve.py
 
 ltx_video = Stack(
     name="ltx-video",
-    # vastai/base-image variants are pre-cached on Vast.ai hosts -> faster startup
-    image="vastai/base-image:cuda-12.4.1-cudnn-devel-ubuntu22.04",
-    gpu_vram_gb=24,    # LTX-Video needs ~18 GB for standard resolution inference
-    disk_gb=100,       # ~15 GB model + ~15 GB torch/deps + buffer for output videos
+    # Official Vast.ai PyTorch image with @vastai-automatic-tag.
+    # The template (hash below) tells Vast.ai to auto-select the right
+    # CUDA tag for the target host (cuda-12.9.1-auto, cuda-12.4.1-auto, …).
+    # torch & torchvision are pre-installed in /venv/main;
+    # onstart only adds diffusers/fastapi/imageio.
+    image="vastai/pytorch",
+    template_hash="b84ca276fa572e949cd7ff43ae5fe855",  # "PyTorch (Vast)" template
+    gpu_vram_gb=32,    # 32 GB gives comfortable headroom for LTX-Video inference
+    disk_gb=100,       # ~15 GB model + deps + buffer for output videos
     ports=[5000],
     onstart=_ONSTART,
     health_url="/health",
+    min_cuda_ver=12.9,  # minimum workload requirement — used for host filtering
 )
 
 register(ltx_video)

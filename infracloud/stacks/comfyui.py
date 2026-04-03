@@ -69,15 +69,17 @@ echo "[infracloud] Models directory: ${COMFYUI_DIR}/models/"
 
 comfyui = Stack(
     name="comfyui",
-    # Official Vast.ai ComfyUI image — pre-built, no install needed.
-    # All available tags are cuda-12.9 or cuda-13.x; require driver ≥ 12.9.
-    image="vastai/comfy:v0.18.2-cuda-12.9-py312",
+    # Official Vast.ai ComfyUI image with @vastai-automatic-tag.
+    # The template (hash below) tells Vast.ai to auto-select the right
+    # CUDA tag for the target host.
+    image="vastai/comfy",
+    template_hash="7a57409b680b49a49a176abf22879b74",  # "ComfyUI" template (id 325864)
     gpu_vram_gb=32,     # 32 GB minimum — comfortable for SDXL/Flux/LTX
     disk_gb=100,        # Models can be large: SDXL ~7GB, Flux ~24GB, etc.
     ports=[8188],
     onstart=_ONSTART,
     health_url="/queue",    # ComfyUI returns {"queue_running": [], "queue_pending": []}
-    min_cuda_ver=12.9,      # All vastai/comfy tags require CUDA ≥ 12.9
+    min_cuda_ver=12.9,      # minimum workload requirement — used for host filtering
 )
 
 register(comfyui)

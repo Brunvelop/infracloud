@@ -72,11 +72,17 @@ class Stack:
         health_port:  Which port from `ports` to use for the health check.
                       Defaults to the first port in `ports` if not set.
         env:          Extra environment variables to set on the instance.
-        min_cuda_ver: Minimum CUDA version required by the Docker image
-                      (e.g. ``12.9`` for a ``cuda-12.9`` image). When set,
-                      only Vast.ai hosts whose driver supports at least this
-                      CUDA version will be considered. Leave as ``None`` to
-                      accept any host.
+        min_cuda_ver: Minimum CUDA version required by the workload
+                      (e.g. ``12.9``). When set, only Vast.ai hosts whose
+                      driver supports at least this CUDA version will be
+                      considered. Leave as ``None`` to accept any host.
+        template_hash: Vast.ai template hash ID for official images that use
+                       ``@vastai-automatic-tag`` (e.g. ``vastai/pytorch``,
+                       ``vastai/comfy``).  When set, infracloud passes it to
+                       ``create_instance`` and omits the explicit ``image``
+                       argument so Vast.ai can auto-select the right CUDA
+                       tag for the target host.  Leave as ``None`` for
+                       plain Docker images where a full tag is specified.
     """
 
     name: str
@@ -89,6 +95,7 @@ class Stack:
     health_port: int | None = None
     env: dict[str, str] = field(default_factory=dict)
     min_cuda_ver: float | None = None
+    template_hash: str | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
