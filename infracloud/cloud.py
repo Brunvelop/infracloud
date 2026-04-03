@@ -284,7 +284,9 @@ class InfraCloud:
         # cuda_max_good: driver's max supported CUDA version (decimal, e.g. 12.9)
         query = (
             f"gpu_ram >= {stack.gpu_vram_gb} "
-            f"disk_space >= {disk_gb}"
+            f"disk_space >= {disk_gb} "
+            f"reliability > 0.9 "
+            f"verified = true"
         )
         if stack.min_cuda_ver is not None:
             query += f" cuda_max_good >= {stack.min_cuda_ver}"
@@ -336,7 +338,9 @@ class InfraCloud:
         else:
             raise RuntimeError(f"Respuesta inesperada de Vast.ai: {result!r}")
 
-        if not data.get("success"):
+        # Vast.ai SDK sometimes returns success=False even when the instance
+        # was created (new_contract is present). Accept both cases.
+        if not data.get("success") and "new_contract" not in data:
             raise RuntimeError(f"Error al crear instancia: {data}")
 
         return int(data["new_contract"])
