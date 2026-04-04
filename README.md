@@ -23,16 +23,16 @@ export VAST_API_KEY=tu_api_key_aqui
 infracloud up ltx-video
 
 # Salida esperada:
-# 🔍 Buscando GPU con ≥24GB VRAM...
-# ✓ Encontrada: RTX 4090 · $0.35/hr · 24GB VRAM
+# 🔍 Buscando GPU con ≥48GB VRAM y CUDA ≥12.7...
+# ✓ Encontrada: RTX A6000 · $0.65/hr · 48GB VRAM
 # 🚀 Creando instancia...
 # ⏳ Esperando a que la instancia arranque...
 # ⏳ Esperando a que el servidor esté listo... (esto puede tardar varios minutos)
 # ✓ Servidor listo!
 #
-#   URL:  http://ssh5.vast.ai:38291
-#   SSH:  ssh -p 34567 root@ssh5.vast.ai
-#   Cost: $0.35/hr
+#   URL:  http://175.155.64.174:19528
+#   SSH:  ssh -p 18140 root@ssh3.vast.ai
+#   Cost: $0.65/hr
 
 # 4. Generar un vídeo
 curl $(infracloud url)/generate \
@@ -115,82 +115,169 @@ server = cloud.up("ltx-video", gpu_vram_gb=48, disk_gb=100)
 
 ---
 
-## Custom Stacks
+## Crear un nuevo stack
 
-Cualquier proyecto puede definir su propio stack sin depender de Python,
-usando un archivo YAML con los mismos campos que el dataclass `Stack`.
+La forma más robusta de definir un stack es crear un directorio dentro de `stacks/` con un `pyproject.toml` que incluya `[tool.infracloud]`. Las versiones de todas las dependencias quedan pinadas en un `uv.lock` commiteado.
+
+```
+stacks/
+  mi-stack/
+    pyproject.toml   ← deps + [tool.infracloud]
+    serve.py         ← entrypoint (FastAPI u otro servidor)
+    uv.lock          ← lockfile generado con `uv lock` (se commitea)
+```
+
+### 1. Crear el directorio y `pyproject.toml`
+
+```toml
+# stacks/mi-stack/pyproject.toml
+[project]
+name = "mi-stack"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.115.12",
+    "uvicorn[standard]==0.34.3",
+    # añade tus deps aquí
+]
+
+[tool.infracloud]
+image = "vastai/pytorch"
+template_hash = "b84ca276fa572e949cd7ff43ae5fe855"  # auto-selecciona tag CUDA
+gpu_vram_gb = 24
+disk_gb = 50
+ports = [5000]
+entrypoint = "serve.py"
+health_url = "/health"
+min_cuda_ver = 12.4
+
+[tool.infracloud.env]
+HF_TOKEN = "${HF_TOKEN}"   # se resuelve desde el entorno local en runtime
+```
+
+### 2. Crear el entrypoint
+
+```python
+# stacks/mi-stack/serve.py
+import uvicorn
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "ready"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=5000)
+```
+
+### 3. Generar el lockfile
+
+```bash
+cd stacks/mi-stack
+uv lock
+git add uv.lock
+```
+
+### 4. Lanzar
+
+```bash
+infracloud up mi-stack
+```
+
+Infracloud descubre automáticamente el stack escaneando `stacks/mi-stack/pyproject.toml`. No hay que registrar nada.
+
+### Campos de `[tool.infracloud]`
+
+| Campo | Tipo | Default | Descripción |
+|---|---|---|---|
+| `image` | `str` | — | Docker image a usar |
+| `gpu_vram_gb` | `int` | `24` | VRAM mínima requerida (GB) |
+| `disk_gb` | `int` | `50` | Disco a asignar (GB) |
+| `ports` | `list[int]` | `[5000]` | Puertos expuestos en el contenedor |
+| `entrypoint` | `str` | — | Script Python a ejecutar (ej: `"serve.py"`) |
+| `health_url` | `str` | `"/health"` | Path HTTP para el health check |
+| `health_port` | `int` | — | Puerto para health check (default: primer puerto) |
+| `min_cuda_ver` | `float` | — | Versión mínima de CUDA requerida (ej: `12.7`) |
+| `template_hash` | `str` | — | Hash de template Vast.ai para imágenes oficiales (`vastai/pytorch`, etc.) |
+| `onstart_mode` | `str` | `"uv"` | `"uv"` para el flujo estándar, `"custom"` para usar `onstart.sh` |
+| `repo_url` | `str` | — | URL del repo a clonar (override de `INFRACLOUD_REPO_URL`) |
+
+### Stack personalizado desde YAML (método alternativo)
+
+Para proyectos que no quieren usar el sistema de directorios:
 
 ```yaml
-# mi-comfyui.yaml
-name: my-comfyui
+# mi-stack.yaml
+name: my-server
 image: vastai/base-image:cuda-12.4.1-cudnn-devel-ubuntu22.04
 gpu_vram_gb: 24
 disk_gb: 50
 ports:
-  - 8188
+  - 5000
 onstart: |
   #!/bin/bash
   set -e
   source /venv/main/bin/activate
-  pip install --quiet comfyui
-  cd /workspace
-  python -m comfyui --port 8188 --listen 0.0.0.0
-health_url: /
+  pip install fastapi uvicorn
+  python /workspace/serve.py
+health_url: /health
 ```
 
 ```bash
-infracloud up ./mi-comfyui.yaml
+infracloud up ./mi-stack.yaml
 ```
 
 ```python
 from infracloud import InfraCloud
 from infracloud.stack import Stack
 
-server = InfraCloud().up(Stack.from_yaml("./mi-comfyui.yaml"))
+server = InfraCloud().up(Stack.from_yaml("./mi-stack.yaml"))
 ```
-
-### Campos del Stack
-
-| Campo | Tipo | Default | Descripción |
-|---|---|---|---|
-| `name` | `str` | — | Identificador del stack |
-| `image` | `str` | — | Docker image |
-| `gpu_vram_gb` | `int` | `24` | VRAM mínimo requerido (GB) |
-| `disk_gb` | `int` | `50` | Disco a asignar (GB) |
-| `ports` | `list[int]` | `[5000]` | Puertos expuestos en el contenedor |
-| `onstart` | `str` | `""` | Script bash que se ejecuta al arrancar |
-| `health_url` | `str` | `"/health"` | Path HTTP para el health check |
-| `health_port` | `int\|None` | `None` | Puerto para health check (default: primer puerto) |
-| `env` | `dict` | `{}` | Variables de entorno adicionales |
 
 ---
 
 ## Stacks built-in
 
-| Nombre | Modelo | VRAM | Puerto | Endpoints |
+| Nombre | Modelo | VRAM | Puerto | Imagen base |
 |---|---|---|---|---|
-| `ltx-video` | [Lightricks/LTX-Video](https://huggingface.co/Lightricks/LTX-Video) | 24 GB | 5000 | `GET /health`, `POST /generate` |
+| `ltx-video` | [Lightricks/LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) — 22B | 48 GB | 5000 | `vastai/pytorch` |
+| `comfyui` | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | 32 GB | 8188 | `vastai/comfy` |
 
-### `ltx-video` — Generación de vídeo
+### `ltx-video` — Generación de vídeo + audio
+
+Modelo distilled de 22B parámetros con FP8 quantization. Genera vídeo con audio sincronizado.
 
 ```bash
-# Generar con parámetros por defecto
-curl $(infracloud url)/generate \
+infracloud up ltx-video
+
+# Generar un vídeo (una vez el servidor esté listo)
+curl -X POST $(infracloud url)/generate \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "a cat walking on the moon"}' \
+  -d '{"prompt": "a cat walking on the moon, cinematic"}' \
   -o video.mp4
 
 # Parámetros disponibles:
 # {
-#   "prompt": "...",                   (requerido)
-#   "negative_prompt": "...",          (default: ruido, blur, etc.)
-#   "num_frames": 97,                  (debe ser 8k+1: 25, 49, 97...)
-#   "width": 768,
-#   "height": 512,
-#   "num_inference_steps": 40,
-#   "guidance_scale": 7.5,
-#   "seed": null                       (int para reproducibilidad)
+#   "prompt": "...",          (requerido)
+#   "duration": 3.0,          (segundos; default 3.0)
+#   "width": 1536,
+#   "height": 1024,
+#   "enhance_prompt": true,   (expande el prompt con Gemma 12B)
+#   "seed": null              (int para reproducibilidad)
 # }
+```
+
+> Ver la [guía completa](docs/ltx-video.md) para más detalles, recetas y resolución de problemas.
+
+### `comfyui` — Interfaz web de generación
+
+```bash
+infracloud up comfyui
+
+# Abrir la interfaz en el navegador
+open $(infracloud url)
 ```
 
 ---
@@ -218,15 +305,15 @@ Desarrollador                        Vast.ai                      Instancia GPU
      │                                  │                               │
      │  infracloud up ltx-video         │                               │
      │─────────────────────────────►    │                               │
-     │  1. search_offers(vram≥24GB)     │                               │
-     │  2. create_instance(            │                               │
-     │     image, onstart, ports)       │──── crea instancia ─────────► │
+     │  1. search_offers(vram≥48GB)     │                               │
+     │  2. create_instance(             │                               │
+     │     image, onstart, ports)       │──── crea instancia ─────────►│
      │                                  │                               │ onstart:
-     │  3. poll: status == "running"?   │                               │  pip install ...
-     │  4. poll: GET /health → 200?     │                               │  descarga modelo
-     │◄──────────── ✓ ready ────────────│◄──────────────────────────── │  lanza FastAPI
-     │                                  │                               │
-     │  URL: http://host:38291          │                               │
+     │  3. poll: status == "running"?   │                               │  uv install
+     │  4. poll: GET /health → 200?     │                               │  git clone repo
+     │◄──────────── ✓ ready ────────────│◄─────────────────────────────│  uv sync --frozen
+     │                                  │                               │  descarga modelo
+     │  URL: http://host:38291          │                               │  lanza FastAPI
      │                                  │                               │
      │  POST /generate {prompt: "..."}  │                               │
      │─────────────────────────────────────────────────────────────────►│
@@ -266,17 +353,24 @@ pip install git+https://github.com/tu-usuario/infracloud
 
 ### Variables de entorno
 
-Copia `.env.example` a `.env` y rellena tu API key:
+Copia `.env.example` a `.env` y rellena los valores:
 
 ```bash
 cp .env.example .env
-# edita .env y añade: VAST_API_KEY=tu_api_key
 ```
 
-O expórtala directamente:
+| Variable | Descripción |
+|---|---|
+| `VAST_API_KEY` | API key de Vast.ai (obligatorio). Obtén la tuya en [cloud.vast.ai/api/](https://cloud.vast.ai/api/). |
+| `INFRACLOUD_REPO_URL` | URL del repositorio infracloud a clonar en la instancia remota. Necesaria para stacks en modo `"uv"` (ej: `https://github.com/tu-usuario/infracloud.git`). |
+| `HF_TOKEN` | Token de Hugging Face para modelos gated (ej: Gemma). Obtén el tuyo en [hf.co/settings/tokens](https://huggingface.co/settings/tokens). |
+
+O expórtalas directamente:
 
 ```bash
 export VAST_API_KEY=tu_api_key
+export INFRACLOUD_REPO_URL=https://github.com/tu-usuario/infracloud.git
+export HF_TOKEN=hf_xxx  # solo si usas modelos gated
 ```
 
 ---

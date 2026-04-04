@@ -37,14 +37,15 @@ infracloud up ltx-video
 Esto hace automáticamente:
 1. Busca la GPU más barata con ≥48 GB VRAM y CUDA ≥12.7 en Vast.ai
 2. Crea la instancia y espera a que arranque
-3. Instala xformers, flashpack y el resto de dependencias Python
-4. Clona el repositorio [Lightricks/LTX-2](https://github.com/Lightricks/LTX-2) e instala `ltx-core` y `ltx-pipelines`
-5. Descarga los checkpoints desde Hugging Face:
+3. Instala [uv](https://docs.astral.sh/uv/) en la instancia
+4. Clona el repositorio infracloud en `/workspace/infracloud`
+5. Ejecuta `uv sync --frozen` en `stacks/ltx-video/` — instala **todas las dependencias pinadas** del `uv.lock` (xformers, flashpack, ltx-core, ltx-pipelines y el resto) directamente en el venv pre-instalado con torch+CUDA
+6. Descarga los checkpoints desde Hugging Face:
    - Modelo distilled 22B (`ltx-2.3-22b-distilled.safetensors`, ~50 GB)
    - Spatial upsampler ×2 (`ltx-2.3-spatial-upscaler-x2-1.1.safetensors`)
    - Gemma 3 12B text encoder (`google/gemma-3-12b-it-qat-q4_0-unquantized`, ~25 GB)
-6. Lanza un servidor FastAPI en el puerto 5000
-7. Espera hasta que el servidor responda correctamente al health check
+7. Lanza un servidor FastAPI en el puerto 5000
+8. Espera hasta que el servidor responda correctamente al health check
 
 **Tiempo típico: 20–35 minutos** (la mayor parte es la descarga de los modelos ~75 GB).
 
@@ -268,4 +269,36 @@ curl -X POST $(infracloud url)/generate \
   -H "Content-Type: application/json" \
   -d '{"prompt": "...", "width": 1024, "height": 768}' \
   -o video.mp4
+```
+
+### Depurar en la instancia remota
+
+Conecta por SSH y monitoriza el proceso de arranque directamente:
+
+```bash
+# Obtener el comando SSH
+infracloud status
+
+# Conectar a la instancia (o usar el atajo)
+infracloud ssh
+
+# Una vez dentro, ver el log del script de arranque (onstart)
+journalctl -u vastai-onstart -f
+# o bien:
+tail -f /var/log/onstart.log 2>/dev/null || tail -f /proc/1/fd/1
+
+# Verificar que uv sync completó
+ls /workspace/infracloud/stacks/ltx-video/
+
+# Comprobar que las deps están instaladas en el venv
+/venv/main/bin/python -c "import ltx_pipelines; print('OK')"
+
+# Ver si el servidor FastAPI está corriendo
+ps aux | grep python
+curl localhost:5000/health
+
+# Lanzar el servidor manualmente si falló
+source /venv/main/bin/activate
+cd /workspace/infracloud/stacks/ltx-video
+python serve.py
 ```
