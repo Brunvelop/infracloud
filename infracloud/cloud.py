@@ -267,12 +267,17 @@ class InfraCloud:
         """
         if isinstance(stack, str):
             # Deferred import to avoid circular dependency (stacks → cloud)
-            from infracloud.stacks import get as get_builtin  # noqa: PLC0415
+            from infracloud.stacks import get as get_builtin, list_stacks  # noqa: PLC0415
             resolved = get_builtin(stack)
             if resolved is None:
+                available = list_stacks()
+                hint = (
+                    f" Stacks disponibles: {', '.join(available)}."
+                    if available
+                    else " No se encontraron stacks built-in en el directorio stacks/."
+                )
                 raise RuntimeError(
-                    f"Stack desconocido: {stack!r}. "
-                    "Usa el nombre de un stack built-in o pasa un objeto Stack."
+                    f"Stack desconocido: {stack!r}.{hint}"
                 )
         else:
             resolved = stack

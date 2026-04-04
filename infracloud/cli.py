@@ -2,6 +2,7 @@
 infracloud CLI — Launch and manage GPU servers on Vast.ai.
 
 Commands:
+  list         List available built-in stacks
   up <stack>   Launch a GPU server (built-in stack name or path to .yaml)
   down         Destroy the active instance
   status       Show status of the active instance
@@ -11,6 +12,7 @@ Commands:
 
 Examples:
 
+    infracloud list
     infracloud up ltx-video
     infracloud up ./my-stack.yaml
     curl $(infracloud url)/generate -d '{"prompt": "a cat"}'
@@ -73,6 +75,45 @@ def _format_uptime(created_at_iso: str) -> str:
 @click.version_option(package_name="infracloud", prog_name="infracloud")
 def cli() -> None:
     """infracloud — gestión de servidores GPU en Vast.ai."""
+
+
+# ─── list ─────────────────────────────────────────────────────────────────────
+
+
+@cli.command(name="list")
+def list_command() -> None:
+    """Lista los stacks built-in disponibles."""
+    from infracloud.stacks import get, list_stacks
+
+    names = list_stacks()
+    if not names:
+        click.echo("No se encontraron stacks en el directorio stacks/.")
+        return
+
+    click.echo("Stacks disponibles:\n")
+    # Compute column widths for alignment
+    name_width = max(len(n) for n in names)
+    for name in names:
+        try:
+            stack = get(name)
+        except Exception:
+            stack = None
+
+        if stack is None:
+            click.echo(f"  {name}")
+            continue
+
+        # Format port list: single port as plain int, multiple as "p1, p2"
+        ports_str = ", ".join(str(p) for p in stack.ports)
+        # Use the real image name even for template_hash stacks
+        image = stack.image
+
+        click.echo(
+            f"  {name:<{name_width}}    "
+            f"{stack.gpu_vram_gb}GB VRAM · "
+            f"{image:<16} · "
+            f"port {ports_str}"
+        )
 
 
 # ─── up ───────────────────────────────────────────────────────────────────────
