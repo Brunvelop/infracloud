@@ -32,7 +32,7 @@ disk_gb = 200
 ports = [5000]
 entrypoint = "serve.py"
 health_url = "/health"
-min_cuda_ver = 12.7
+min_cuda_ver = 12.8
 
 [tool.infracloud.env]
 HF_TOKEN = "${HF_TOKEN}"
