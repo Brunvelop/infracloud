@@ -9,7 +9,7 @@ dependencies = [
     "accelerate==1.7.0",
     "einops==0.8.1",
     "scipy==1.15.3",
-    "av==14.4.0",
+    "av==16.1.0",
     "scikit-image==0.25.2",
     "flashpack==0.2.0",
     "fastapi==0.115.12",
