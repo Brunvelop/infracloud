@@ -258,7 +258,13 @@ class InfraCloud:
     # ── Private helpers ───────────────────────────────────────────────────────
 
     def _resolve_stack(self, stack: Stack | str, overrides: dict) -> Stack:
-        """Resolve *stack* to a :class:`Stack` instance, applying any overrides."""
+        """Resolve *stack* to a :class:`Stack` instance, applying any overrides.
+
+        After loading the stack, ``repo_url`` is injected from the
+        ``INFRACLOUD_REPO_URL`` environment variable if the stack doesn't
+        already define one.  This keeps the repo URL out of committed config
+        while still allowing it to be set per-machine via a ``.env`` file.
+        """
         if isinstance(stack, str):
             # Deferred import to avoid circular dependency (stacks → cloud)
             from infracloud.stacks import get as get_builtin  # noqa: PLC0415
@@ -270,6 +276,14 @@ class InfraCloud:
                 )
         else:
             resolved = stack
+
+        # Inject repo_url from env if the stack doesn't define one.
+        # Required by build_onstart() for onstart_mode="uv" stacks.
+        if resolved.repo_url is None:
+            repo_url = os.environ.get("INFRACLOUD_REPO_URL")
+            if repo_url:
+                from dataclasses import replace  # noqa: PLC0415
+                resolved = replace(resolved, repo_url=repo_url)
 
         if overrides:
             from dataclasses import replace  # noqa: PLC0415
@@ -367,7 +381,7 @@ class InfraCloud:
             # In that case we pass image=None so the template takes over.
             image=None if stack.template_hash else stack.image,
             disk=float(stack.disk_gb),
-            onstart_cmd=stack.onstart if stack.onstart else None,
+            onstart_cmd=stack.build_onstart() or None,
             env=env_str,
             ssh=True,
             direct=True,
