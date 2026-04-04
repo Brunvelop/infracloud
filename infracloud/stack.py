@@ -159,6 +159,48 @@ class Stack:
     # ── Loaders ───────────────────────────────────────────────────────────────
 
     @classmethod
+    def get(cls, name: str) -> Stack | None:
+        """Look up a built-in stack by name (= directory name under ``stacks/``).
+
+        Scans the ``stacks/`` directory at the repository root (three levels up
+        from this file: ``infracloud/stack.py`` → ``../../..`` → repo root).
+
+        Args:
+            name: The stack name, e.g. ``"ltx-video"`` or ``"comfyui"``.
+
+        Returns:
+            A :class:`Stack` loaded from ``stacks/{name}/pyproject.toml``,
+            or ``None`` if the directory or ``pyproject.toml`` does not exist.
+        """
+        stacks_root = Path(__file__).resolve().parent.parent / "stacks"
+        stack_dir = stacks_root / name
+        if not stack_dir.is_dir():
+            return None
+        if not (stack_dir / "pyproject.toml").exists():
+            return None
+        return cls.from_dir(stack_dir)
+
+    @classmethod
+    def list_available(cls) -> list[str]:
+        """Return the names of all available built-in stacks.
+
+        Scans the ``stacks/`` directory at the repository root for
+        subdirectories that contain a ``pyproject.toml``.
+
+        Returns:
+            Sorted list of stack names (directory names), e.g.
+            ``["comfyui", "ltx-video"]``.
+        """
+        stacks_root = Path(__file__).resolve().parent.parent / "stacks"
+        if not stacks_root.is_dir():
+            return []
+        return sorted(
+            d.name
+            for d in stacks_root.iterdir()
+            if d.is_dir() and (d / "pyproject.toml").exists()
+        )
+
+    @classmethod
     def from_dir(cls, path: str | Path) -> Stack:
         """Load a Stack from a directory containing a ``pyproject.toml`` with
         ``[tool.infracloud]`` metadata.

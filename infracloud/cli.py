@@ -83,9 +83,9 @@ def cli() -> None:
 @cli.command(name="list")
 def list_command() -> None:
     """Lista los stacks built-in disponibles."""
-    from infracloud.stacks import get, list_stacks
+    from infracloud.stack import Stack
 
-    names = list_stacks()
+    names = Stack.list_available()
     if not names:
         click.echo("No se encontraron stacks en el directorio stacks/.")
         return
@@ -95,7 +95,7 @@ def list_command() -> None:
     name_width = max(len(n) for n in names)
     for name in names:
         try:
-            stack = get(name)
+            stack = Stack.get(name)
         except Exception:
             stack = None
 

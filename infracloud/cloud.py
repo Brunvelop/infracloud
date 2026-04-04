@@ -266,11 +266,9 @@ class InfraCloud:
         while still allowing it to be set per-machine via a ``.env`` file.
         """
         if isinstance(stack, str):
-            # Deferred import to avoid circular dependency (stacks → cloud)
-            from infracloud.stacks import get as get_builtin, list_stacks  # noqa: PLC0415
-            resolved = get_builtin(stack)
+            resolved = Stack.get(stack)
             if resolved is None:
-                available = list_stacks()
+                available = Stack.list_available()
                 hint = (
                     f" Stacks disponibles: {', '.join(available)}."
                     if available
