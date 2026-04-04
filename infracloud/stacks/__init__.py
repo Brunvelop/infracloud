@@ -1,51 +1,71 @@
 """
-Registry of built-in infracloud stacks.
+Stack discovery for infracloud.
 
-Built-in stacks can be referenced by name in the CLI or Python API:
+Stacks are discovered automatically by scanning the ``stacks/`` directory at
+the repository root. Any subdirectory that contains a ``pyproject.toml`` with
+a ``[tool.infracloud]`` section is a valid stack:
 
-    infracloud up ltx-video
-    cloud.up("ltx-video")
+    stacks/
+      ltx-video/
+        pyproject.toml   ← [tool.infracloud] metadata
+        serve.py         ← entrypoint
+        uv.lock          ← pinned dependencies
+      comfyui/
+        pyproject.toml   ← [tool.infracloud] metadata (onstart_mode = "custom")
+        onstart.sh       ← custom boot script
 
-External projects can register their own stacks at runtime:
+Usage::
 
-    from infracloud.stacks import register
-    from infracloud.stack import Stack
+    infracloud up ltx-video    # discovers stacks/ltx-video/pyproject.toml
+    infracloud up comfyui      # discovers stacks/comfyui/pyproject.toml
 
-    register(Stack(name="my-stack", image="...", ...))
+External stacks can also be passed directly as :class:`~infracloud.stack.Stack`
+objects or YAML files — no registration needed.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from infracloud.stack import Stack
 
-BUILTIN_STACKS: dict[str, Stack] = {}
-
-
-def register(stack: Stack) -> None:
-    """Add a Stack to the built-in registry.
-
-    Args:
-        stack: The Stack instance to register. Its ``name`` attribute is used
-               as the lookup key.
-    """
-    BUILTIN_STACKS[stack.name] = stack
+# ``stacks/`` lives at the repo root, three levels up from this file:
+#   infracloud/stacks/__init__.py  →  ../../..  →  repo root
+_STACKS_ROOT = Path(__file__).resolve().parent.parent.parent / "stacks"
 
 
 def get(name: str) -> Stack | None:
-    """Look up a built-in stack by name.
+    """Look up a stack by name (= directory name under ``stacks/``).
 
     Args:
-        name: The stack name, e.g. ``"ltx-video"``.
+        name: The stack name, e.g. ``"ltx-video"`` or ``"comfyui"``.
 
     Returns:
-        The matching :class:`~infracloud.stack.Stack`, or ``None`` if not found.
+        A :class:`~infracloud.stack.Stack` loaded from
+        ``stacks/{name}/pyproject.toml``, or ``None`` if the directory or
+        ``pyproject.toml`` does not exist.
     """
-    return BUILTIN_STACKS.get(name)
+    stack_dir = _STACKS_ROOT / name
+    if not stack_dir.is_dir():
+        return None
+    if not (stack_dir / "pyproject.toml").exists():
+        return None
+    return Stack.from_dir(stack_dir)
 
 
-# ── Register built-in stacks ──────────────────────────────────────────────────
-# Imports are done here (bottom of file) to avoid circular imports, since each
-# stack module imports `register` from this file.
+def list_stacks() -> list[str]:
+    """Return the names of all available built-in stacks.
 
-from infracloud.stacks import ltx_video as _ltx_video  # noqa: E402, F401
-from infracloud.stacks import comfyui as _comfyui      # noqa: E402, F401
+    Scans ``stacks/`` for subdirectories that contain a ``pyproject.toml``.
+
+    Returns:
+        Sorted list of stack names (directory names), e.g.
+        ``["comfyui", "ltx-video"]``.
+    """
+    if not _STACKS_ROOT.is_dir():
+        return []
+    return sorted(
+        d.name
+        for d in _STACKS_ROOT.iterdir()
+        if d.is_dir() and (d / "pyproject.toml").exists()
+    )
