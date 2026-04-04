@@ -14,7 +14,7 @@ dependencies = [
     "flashpack==0.2.0",
     "fastapi==0.115.12",
     "uvicorn[standard]==0.34.3",
-    "huggingface_hub[hf_transfer]==0.33.0",
+    "huggingface_hub[hf_transfer]==0.36.2",
     "xformers==0.0.30",
     "ltx-core",
     "ltx-pipelines",
@@ -36,6 +36,7 @@ health_url = "/health"
 min_cuda_ver = 12.7
 
 [tool.infracloud.env]
+HF_TOKEN = "${HF_TOKEN}"
 TORCH_COMPILE_DISABLE = "1"
 TORCHDYNAMO_DISABLE = "1"
 PYTORCH_CUDA_ALLOC_CONF = "expandable_segments:True"
