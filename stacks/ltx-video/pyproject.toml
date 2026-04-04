@@ -26,8 +26,7 @@ ltx-core = { git = "https://github.com/Lightricks/LTX-2.git", subdirectory = "pa
 ltx-pipelines = { git = "https://github.com/Lightricks/LTX-2.git", subdirectory = "packages/ltx-pipelines", rev = "59ca828d5ae24358832ffd7003c2306fbceeba3a" }
 
 [tool.infracloud]
-image = "vastai/pytorch"
-template_hash = "b84ca276fa572e949cd7ff43ae5fe855"
+image = "vastai/pytorch:2.7.1-cuda-12.8.1-py311-24.04-2026-03-26"
 gpu_vram_gb = 48
 disk_gb = 200
 ports = [5000]
