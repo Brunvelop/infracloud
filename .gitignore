@@ -24,6 +24,8 @@ env/
 
 # uv
 uv.lock
+# Stack lockfiles must be committed for reproducibility
+!stacks/*/uv.lock
 
 # Environment variables
 .env

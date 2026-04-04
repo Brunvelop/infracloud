@@ -102,8 +102,12 @@ pip install --quiet \
 # Enable faster HF downloads
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
-echo "[infracloud] Cloning LTX-2 repository..."
-if [ ! -d /workspace/LTX-2 ]; then
+echo "[infracloud] Cloning/updating LTX-2 repository..."
+if [ -d /workspace/LTX-2 ]; then
+    # Repo already exists — pull latest commits so model_ledger and other
+    # recent API additions are always available.
+    git -C /workspace/LTX-2 pull --ff-only || true
+else
     git clone --depth 1 https://github.com/Lightricks/LTX-2.git /workspace/LTX-2
 fi
 

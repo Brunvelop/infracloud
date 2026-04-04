@@ -1,0 +1,17 @@
+[project]
+name = "comfyui-stack"
+version = "0.1.0"
+requires-python = ">=3.11"
+# ComfyUI usa la imagen pre-built vastai/comfy — no necesita deps adicionales
+dependencies = []
+
+[tool.infracloud]
+image = "vastai/comfy"
+template_hash = "7a57409b680b49a49a176abf22879b74"
+gpu_vram_gb = 32
+disk_gb = 100
+ports = [8188]
+health_url = "/queue"
+min_cuda_ver = 12.9
+# ComfyUI usa un onstart custom (no el flujo estándar de uv sync)
+onstart_mode = "custom"
