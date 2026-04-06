@@ -124,86 +124,91 @@ class InfraCloud:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
+    def start(
+        self,
+        stack: Stack | str,
+        offer_id: int | None = None,
+        **overrides,
+    ) -> int:
+        """Create a GPU instance and return immediately (non-blocking).
+
+        Does **not** wait for the instance to be running or healthy.
+        The caller should poll :meth:`status` to track progress.
+
+        Args:
+            stack:      A :class:`Stack` instance, or the name of a built-in
+                        stack (e.g. ``"ltx-video"``).
+            offer_id:   Optional Vast.ai offer ID to use directly, skipping
+                        the automatic search.
+            **overrides: Optional field overrides applied to the resolved Stack
+                         before launching (e.g. ``gpu_vram_gb=48``).
+
+        Returns:
+            The Vast.ai instance ID.
+
+        Raises:
+            RuntimeError: If no offer is found or instance creation fails.
+        """
+        stack = self._resolve_stack(stack, overrides)
+
+        if offer_id is not None:
+            offer = self._fetch_offer_by_id(offer_id)
+        else:
+            offer = self._find_offer(stack)
+
+        instance_id = self._create_instance(stack, offer)
+        return instance_id
+
     def up(
         self,
         stack: Stack | str,
         offer_id: int | None = None,
         **overrides,
     ) -> Server:
-        """Launch a GPU server and block until it's healthy.
+        """Launch a GPU server and block until it's healthy (CLI use).
+
+        Calls :meth:`start` then polls until the instance is running and
+        the health endpoint responds HTTP 200.
 
         Args:
             stack:      A :class:`Stack` instance, or the name of a built-in
                         stack (e.g. ``"ltx-video"``).
-            offer_id:   Optional Vast.ai offer ID to use directly, skipping the
-                        automatic search. Useful when you've found a suitable
-                        machine via the Vast.ai UI or ``search_offers`` yourself.
-                        Example: ``cloud.up("ltx-video", offer_id=12345678)``
+            offer_id:   Optional Vast.ai offer ID to use directly, skipping
+                        the automatic search.
             **overrides: Optional field overrides applied to the resolved Stack
                          before launching (e.g. ``gpu_vram_gb=48``).
 
         Returns:
-            A :class:`Server` with all connection details, ready to accept
-            HTTP requests.
+            A :class:`Server` with all connection details and ``is_ready=True``.
 
         Raises:
             RuntimeError: If no suitable GPU offer is found, instance creation
                           fails, or the server doesn't become healthy in time.
         """
-        stack = self._resolve_stack(stack, overrides)
+        # Resolve stack here so we have it for the health URL after start()
+        resolved = self._resolve_stack(stack, overrides)
 
-        # 1. Find cheapest matching GPU offer (or use the specified offer_id)
-        if offer_id is not None:
-            click.echo(f"🔍 Buscando oferta {offer_id}...")
-            offer = self._fetch_offer_by_id(offer_id)
-        else:
-            offer = self._find_offer(stack)
-        click.echo(
-            f"✓ Encontrada: {offer['gpu_name']} · "
-            f"${offer['dph_total']:.2f}/hr · "
-            f"{offer['gpu_ram'] / 1024:.0f}GB VRAM"
-        )
-
-        # 2. Create instance
-        click.echo("🚀 Creando instancia...")
-        instance_id = self._create_instance(stack, offer)
+        # 1. Create instance (non-blocking)
+        instance_id = self.start(resolved, offer_id=offer_id)
         click.echo(f"  ID de instancia: {instance_id}")
 
-        # 3. Poll until Vast.ai reports status = "running"
+        # 2. Poll until Vast.ai reports status = "running"
         click.echo("⏳ Esperando a que la instancia arranque...")
         instance = self._wait_for_running(instance_id)
 
-        # 4. Extract connection details from instance metadata
-        ssh_host = instance["ssh_host"]
-        ssh_port = int(instance["ssh_port"])
-        public_ip = instance["public_ipaddr"]   # direct access IP
-        api_ports = self._extract_ports(instance, stack)
-        cost_per_hr = float(instance.get("dph_total", 0.0))
-        gpu_name = instance.get("gpu_name", "")
+        # 3. Build Server from live instance data
+        server = self._instance_to_server(instance)
 
-        # 5. Health poll — use public_ip for direct HTTP access (not SSH proxy)
-        health_port = api_ports.get(str(stack.effective_health_port))
-        if health_port is None:
-            # fall back to first mapped port
-            health_port = next(iter(api_ports.values()))
+        # 4. Health poll — use public_ip for direct HTTP access (not SSH proxy)
+        health_port = next(iter(server.api_ports.values()), None)
+        if health_port is not None:
+            click.echo(
+                "⏳ Esperando a que el servidor esté listo... "
+                "(esto puede tardar varios minutos)"
+            )
+            self._wait_for_health(server.public_ip, health_port, resolved.health_url)
 
-        click.echo(
-            "⏳ Esperando a que el servidor esté listo... "
-            "(esto puede tardar varios minutos)"
-        )
-        self._wait_for_health(public_ip, health_port, stack.health_url)
-
-        # 6. Return handle — label on Vast.ai is enough for status() and down()
-        server = Server(
-            instance_id=instance_id,
-            stack_name=stack.name,
-            ssh_host=ssh_host,
-            ssh_port=ssh_port,
-            public_ip=public_ip,
-            api_ports=api_ports,
-            cost_per_hr=cost_per_hr,
-            gpu_name=gpu_name,
-        )
+        server.is_ready = True
         click.echo("✓ Servidor listo!")
         return server
 
