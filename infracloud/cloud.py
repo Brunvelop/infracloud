@@ -32,7 +32,6 @@ from dotenv import load_dotenv
 from vastai import VastAI
 
 from infracloud.stack import Stack
-from infracloud.state import clear_state, load_state, save_state
 
 # Load .env if present — allows VAST_API_KEY to live in a .env file
 load_dotenv()

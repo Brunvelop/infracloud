@@ -28,9 +28,6 @@ from datetime import datetime, timezone
 
 import click
 
-from infracloud.state import load_state
-
-
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
