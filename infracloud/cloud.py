@@ -22,7 +22,9 @@ Usage (CLI):
 
 from __future__ import annotations
 
+import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 
@@ -32,6 +34,48 @@ from dotenv import load_dotenv
 from vastai import VastAI
 
 from infracloud.stack import Stack
+
+# ─── Logging: redact secrets from vastai SDK debug output ────────────────────
+# The vastai SDK uses the root logger to dump full kwargs (including api_key)
+# and full API responses (including tokens) at DEBUG level.
+# This filter intercepts those records and replaces secret values with ***.
+
+class _SecretRedactFilter(logging.Filter):
+    """Redact API keys and tokens from log records before they are emitted.
+
+    Targets patterns produced by the vastai SDK at DEBUG level, e.g.:
+        Calling show__instances with arguments: kwargs={'api_key': "'abc123'", ...}
+        └-> [{'jupyter_token': '...', 'extra_env': [['HF_TOKEN', '...'], ...], ...}]
+
+    The SDK uses repr() on values, so secrets always appear wrapped in single quotes.
+    """
+
+    # Each pattern captures the key part (group 1) and matches the secret value.
+    # Substitution keeps group 1 and replaces the value with '***'.
+    _PATTERNS = [
+        # 'api_key': "'<long-value>'"  — kwargs repr format from the SDK
+        re.compile(r"('api_key'\s*:\s*)'[^']{8,}'"),
+        # 'jupyter_token': '<long-value>'
+        re.compile(r"('jupyter_token'\s*:\s*)'[^']{8,}'"),
+        # HF_TOKEN inside extra_env lists: ['HF_TOKEN', 'hf_...']
+        re.compile(r"('HF_TOKEN'\s*,\s*)'[^']{8,}'"),
+        # Generic fallback: any key ending in token/key/secret with a long value
+        re.compile(r"('[^']*(?:token|key|secret)[^']*'\s*:\s*)'[^']{16,}'", re.I),
+    ]
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            msg = record.getMessage()
+            for pat in self._PATTERNS:
+                msg = pat.sub(r"\g<1>'***'", msg)
+            record.msg = msg
+            record.args = None
+        except Exception:
+            pass
+        return True
+
+
+logging.getLogger().addFilter(_SecretRedactFilter())
 
 # Load .env if present — allows VAST_API_KEY to live in a .env file
 load_dotenv()
