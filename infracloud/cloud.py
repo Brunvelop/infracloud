@@ -25,7 +25,6 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 import click
 import httpx
@@ -94,10 +93,9 @@ class Server:
         return f"ssh -p {self.ssh_port} root@{self.ssh_host}"
 
     def down(self) -> None:
-        """Destroy this instance and remove local state."""
+        """Destroy this instance."""
         cloud = InfraCloud()
         cloud._vastai.destroy_instance(id=self.instance_id)
-        clear_state()
 
 
 # ─── InfraCloud ───────────────────────────────────────────────────────────────
@@ -195,20 +193,7 @@ class InfraCloud:
         )
         self._wait_for_health(public_ip, health_port, stack.health_url)
 
-        # 6. Persist state and return handle
-        state = {
-            "instance_id": instance_id,
-            "stack_name": stack.name,
-            "ssh_host": ssh_host,
-            "ssh_port": ssh_port,
-            "public_ip": public_ip,
-            "api_ports": api_ports,
-            "cost_per_hr": cost_per_hr,
-            "gpu_name": gpu_name,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        save_state(state)
-
+        # 6. Return handle — label on Vast.ai is enough for status() and down()
         server = Server(
             instance_id=instance_id,
             stack_name=stack.name,
@@ -223,41 +208,35 @@ class InfraCloud:
         return server
 
     def down(self) -> None:
-        """Destroy the active instance and remove local state.
+        """Destroy the active infracloud instance.
+
+        Queries Vast.ai to find the instance by label, then destroys it.
+        Works regardless of local state.
 
         Raises:
-            RuntimeError: If there is no active instance to destroy.
+            RuntimeError: If no active infracloud instance is found.
         """
-        state = load_state()
-        if state is None:
-            raise RuntimeError("No hay instancia activa.")
+        instance = self._find_active_instance()
+        if instance is None:
+            raise RuntimeError("No active infracloud instance found.")
+        self._vastai.destroy_instance(id=instance["id"])
 
-        instance_id = state["instance_id"]
-        self._vastai.destroy_instance(id=instance_id)
-        clear_state()
+    def status(self) -> Server | None:
+        """Return a Server handle for the active infracloud instance, or None.
 
-    def status(self) -> dict | None:
-        """Return the active instance's state, or None if no instance is active.
-
-        Reads from the local state file and optionally verifies with Vast.ai
-        that the instance is still alive.
+        Queries the Vast.ai API directly — no local state file needed.
+        Performs a health check to determine if the server is ready.
 
         Returns:
-            State dict (see :func:`infracloud.state.load_state`) or ``None``.
+            :class:`Server` with ``is_ready=True/False``, or ``None`` if no
+            active instance is found.
         """
-        state = load_state()
-        if state is None:
+        instance = self._find_active_instance()
+        if instance is None:
             return None
-
-        # Try to enrich with live data from Vast.ai
-        try:
-            instance = self._vastai.show_instance(id=state["instance_id"])
-            if isinstance(instance, dict):
-                state["actual_status"] = instance.get("actual_status", "unknown")
-        except Exception:
-            state["actual_status"] = "unknown"
-
-        return state
+        server = self._instance_to_server(instance)
+        server.is_ready = self._check_health(server)
+        return server
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
