@@ -116,6 +116,9 @@ class InfraCloud:
                  from the environment (or from a ``.env`` file).
     """
 
+    LABEL_PREFIX = "infracloud:"
+    _ACTIVE_STATUSES = frozenset({"running", "loading", "creating", "provisioning"})
+
     def __init__(self, api_key: str | None = None) -> None:
         resolved_key = api_key or os.environ.get("VAST_API_KEY")
         self._vastai = VastAI(api_key=resolved_key, raw=True)
@@ -484,33 +487,51 @@ class InfraCloud:
         )
 
     @staticmethod
+    def _parse_vastai_ports(ports_raw: dict) -> dict[str, int]:
+        """Parse Vast.ai Docker-style port mappings into {internal: external}.
+
+        Input format (from Vast.ai API)::
+
+            {"5000/tcp": [{"HostIp": "0.0.0.0", "HostPort": "38291"}], "22/tcp": [...]}
+
+        Output format::
+
+            {"5000": 38291}
+
+        Excludes port 22 (SSH). Only includes TCP ports with valid mappings.
+        Works without a Stack — suitable for recovery and status queries.
+        """
+        result: dict[str, int] = {}
+        for port_key, mappings in ports_raw.items():
+            if "/tcp" not in port_key:
+                continue
+            internal = port_key.split("/")[0]
+            if internal == "22":
+                continue
+            if mappings and isinstance(mappings, list):
+                try:
+                    result[internal] = int(mappings[0]["HostPort"])
+                except (KeyError, ValueError, TypeError, IndexError):
+                    pass
+        return result
+
+    @staticmethod
     def _extract_ports(instance: dict, stack: Stack) -> dict[str, int]:
         """Parse port mappings from the Vast.ai instance response.
 
-        Vast.ai returns port mappings in ``instance["ports"]`` using a
-        Docker-inspect-style format::
-
-            {"5000/tcp": [{"HostIp": "0.0.0.0", "HostPort": "38291"}]}
+        Delegates to ``_parse_vastai_ports()`` for the raw parsing, then adds
+        a fallback for stack ports that don't appear in the mapping (useful
+        in tests or when direct mode assigns the same port).
 
         Returns a dict mapping internal port (as str) → external port (int),
         e.g. ``{"5000": 38291}``.
-
-        Falls back to the original port if the mapping cannot be found (useful
-        in tests or when direct mode assigns the same port).
         """
-        raw_ports: dict = instance.get("ports") or {}
+        all_ports = InfraCloud._parse_vastai_ports(instance.get("ports") or {})
         result: dict[str, int] = {}
-
         for internal_port in stack.ports:
-            key = f"{internal_port}/tcp"
-            mapping = raw_ports.get(key)
-            if mapping and isinstance(mapping, list) and mapping:
-                try:
-                    result[str(internal_port)] = int(mapping[0]["HostPort"])
-                    continue
-                except (KeyError, ValueError, TypeError):
-                    pass
-            # fall back: assume external == internal
-            result[str(internal_port)] = internal_port
-
+            key = str(internal_port)
+            if key in all_ports:
+                result[key] = all_ports[key]
+            else:
+                result[key] = internal_port  # fallback: assume external == internal
         return result
