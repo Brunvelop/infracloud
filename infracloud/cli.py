@@ -24,45 +24,8 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
 
 import click
-
-# ─── Helpers ─────────────────────────────────────────────────────────────────
-
-
-def _require_state() -> dict:
-    """Return the active instance state, or exit with an error if none exists."""
-    state = load_state()
-    if state is None:
-        click.echo("✗ No hay instancia activa.", err=True)
-        sys.exit(1)
-    return state
-
-
-def _build_url(state: dict) -> str:
-    """Build the primary HTTP URL from state (public_ip + first api_port)."""
-    host = state.get("public_ip") or state["ssh_host"]  # fallback for old state
-    first_port = next(iter(state["api_ports"].values()))
-    return f"http://{host}:{first_port}"
-
-
-def _format_uptime(created_at_iso: str) -> str:
-    """Return a human-readable uptime string from an ISO 8601 timestamp."""
-    try:
-        created_at = datetime.fromisoformat(created_at_iso)
-        # Ensure tz-aware for comparison
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
-        delta = datetime.now(timezone.utc) - created_at
-        total_seconds = int(delta.total_seconds())
-        hours, remainder = divmod(total_seconds, 3600)
-        minutes, _ = divmod(remainder, 60)
-        if hours > 0:
-            return f"{hours}h {minutes}m"
-        return f"{minutes}m"
-    except Exception:
-        return "desconocido"
 
 
 # ─── CLI Group ────────────────────────────────────────────────────────────────
@@ -191,13 +154,8 @@ def up(stack: str, vram: int | None, disk: int | None, offer: int | None) -> Non
 
 @cli.command()
 def down() -> None:
-    """Destruye la instancia activa y limpia el estado local."""
+    """Destruye la instancia activa."""
     from infracloud.cloud import InfraCloud
-
-    state = load_state()
-    if state is None:
-        click.echo("✗ No hay instancia activa.", err=True)
-        sys.exit(1)
 
     try:
         InfraCloud().down()
@@ -216,30 +174,20 @@ def status() -> None:
     """Muestra el estado de la instancia activa."""
     from infracloud.cloud import InfraCloud
 
-    info = InfraCloud().status()
-    if info is None:
+    server = InfraCloud().status()
+    if server is None:
         click.echo("No hay instancia activa.")
         return
 
-    url = _build_url(info)
-    ssh_host = info.get("ssh_host", "")
-    ssh_port = info.get("ssh_port", "")
-    ssh_cmd = f"ssh -p {ssh_port} root@{ssh_host}"
-    cost = info.get("cost_per_hr", 0.0)
-    uptime = _format_uptime(info.get("created_at", ""))
-    actual_status = info.get("actual_status", "running")
-    gpu_name = info.get("gpu_name", "")
-
-    # Pad label width for alignment
     col = 10
-    click.echo(f"  {'Stack:':<{col}} {info.get('stack_name', '')}")
-    if gpu_name:
-        click.echo(f"  {'GPU:':<{col}} {gpu_name}")
-    click.echo(f"  {'Status:':<{col}} {actual_status}")
-    click.echo(f"  {'URL:':<{col}} {url}")
-    click.echo(f"  {'SSH:':<{col}} {ssh_cmd}")
-    click.echo(f"  {'Cost:':<{col}} ${cost:.2f}/hr")
-    click.echo(f"  {'Uptime:':<{col}} {uptime}")
+    click.echo(f"  {'Stack:':<{col}} {server.stack_name}")
+    if server.gpu_name:
+        click.echo(f"  {'GPU:':<{col}} {server.gpu_name}")
+    click.echo(f"  {'Status:':<{col}} {'ready' if server.is_ready else 'booting'}")
+    if server.api_ports:
+        click.echo(f"  {'URL:':<{col}} {server.url}")
+    click.echo(f"  {'SSH:':<{col}} {server.ssh_command}")
+    click.echo(f"  {'Cost:':<{col}} ${server.cost_per_hr:.2f}/hr")
 
 
 # ─── url ──────────────────────────────────────────────────────────────────────
@@ -252,8 +200,16 @@ def url() -> None:
     Ejemplo:\n
         curl $(infracloud url)/generate -d '{"prompt": "a cat"}'
     """
-    state = _require_state()
-    click.echo(_build_url(state))
+    from infracloud.cloud import InfraCloud
+
+    server = InfraCloud().status()
+    if server is None:
+        click.echo("✗ No hay instancia activa.", err=True)
+        sys.exit(1)
+    if not server.api_ports:
+        click.echo("✗ La instancia no tiene puertos API aún.", err=True)
+        sys.exit(1)
+    click.echo(server.url)
 
 
 # ─── ssh ──────────────────────────────────────────────────────────────────────
@@ -262,11 +218,14 @@ def url() -> None:
 @cli.command()
 def ssh() -> None:
     """Abre una sesión SSH interactiva en la instancia activa."""
-    state = _require_state()
-    host = state["ssh_host"]
-    port = str(state["ssh_port"])
+    from infracloud.cloud import InfraCloud
+
+    server = InfraCloud().status()
+    if server is None:
+        click.echo("✗ No hay instancia activa.", err=True)
+        sys.exit(1)
     # Replace the current process with SSH so the terminal works correctly
-    os.execvp("ssh", ["ssh", "-p", port, f"root@{host}"])
+    os.execvp("ssh", ["ssh", "-p", str(server.ssh_port), f"root@{server.ssh_host}"])
 
 
 # ─── code ─────────────────────────────────────────────────────────────────────
@@ -282,9 +241,12 @@ def ssh() -> None:
 )
 def code(remote_dir: str) -> None:
     """Abre la instancia activa en VS Code usando Remote-SSH."""
-    state = _require_state()
-    host = state["ssh_host"]
-    port = str(state["ssh_port"])
+    from infracloud.cloud import InfraCloud
+
+    server = InfraCloud().status()
+    if server is None:
+        click.echo("✗ No hay instancia activa.", err=True)
+        sys.exit(1)
     # VS Code Remote-SSH URI format: ssh-remote+user@host:port
-    remote = f"ssh-remote+root@{host}:{port}"
+    remote = f"ssh-remote+root@{server.ssh_host}:{server.ssh_port}"
     os.execvp("code", ["code", "--remote", remote, remote_dir])
