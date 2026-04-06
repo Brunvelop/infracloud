@@ -74,6 +74,7 @@ class Server:
     api_ports: dict[str, int]
     cost_per_hr: float
     gpu_name: str
+    is_ready: bool = False
 
     @property
     def url(self) -> str:
@@ -540,3 +541,63 @@ class InfraCloud:
             else:
                 result[key] = internal_port  # fallback: assume external == internal
         return result
+
+    def _find_active_instance(self) -> dict | None:
+        """Query Vast.ai for the active infracloud instance.
+
+        Searches all instances on the account, filters by:
+
+        - label starts with ``LABEL_PREFIX`` (``"infracloud:"``)
+        - ``actual_status`` is in ``_ACTIVE_STATUSES``
+
+        Returns the first matching instance dict, or ``None``.
+        """
+        try:
+            instances = self._vastai.show_instances()
+            if not isinstance(instances, list):
+                return None
+            for inst in instances:
+                if not isinstance(inst, dict):
+                    continue
+                label = inst.get("label") or ""
+                status = inst.get("actual_status") or ""
+                if label.startswith(self.LABEL_PREFIX) and status in self._ACTIVE_STATUSES:
+                    return inst
+            return None
+        except Exception:
+            return None
+
+    def _instance_to_server(self, instance: dict, is_ready: bool = False) -> Server:
+        """Convert a raw Vast.ai instance dict to a :class:`Server` dataclass."""
+        label = instance.get("label") or ""
+        stack_name = (
+            label.removeprefix(self.LABEL_PREFIX)
+            if label.startswith(self.LABEL_PREFIX)
+            else "unknown"
+        )
+
+        api_ports = self._parse_vastai_ports(instance.get("ports") or {})
+        ssh_port_raw = instance.get("ssh_port")
+
+        return Server(
+            instance_id=instance.get("id"),
+            stack_name=stack_name,
+            ssh_host=instance.get("ssh_host") or "",
+            ssh_port=int(ssh_port_raw) if ssh_port_raw else 0,
+            public_ip=instance.get("public_ipaddr") or "",
+            api_ports=api_ports,
+            cost_per_hr=float(instance.get("dph_total") or 0.0),
+            gpu_name=instance.get("gpu_name") or "",
+            is_ready=is_ready,
+        )
+
+    def _check_health(self, server: Server) -> bool:
+        """Single health check attempt. Returns ``True`` if server responds HTTP 200."""
+        if not server.api_ports:
+            return False
+        try:
+            url = f"{server.url}/health"
+            resp = httpx.get(url, timeout=5.0)
+            return resp.status_code == 200
+        except (httpx.RequestError, httpx.HTTPStatusError):
+            return False
