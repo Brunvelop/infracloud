@@ -379,6 +379,10 @@ class InfraCloud:
             env_parts.append(f"-e {k}={v}")
         env_str = " ".join(env_parts) if env_parts else None
 
+        # Label format: "infracloud:ltx-video" — lets _find_active_instance()
+        # identify our instances without relying on local state.json.
+        label = f"{self.LABEL_PREFIX}{stack.name}"
+
         result = self._vastai.create_instance(
             id=int(offer["id"]),
             # When the stack ships a template_hash (Vast.ai official images with
@@ -392,6 +396,7 @@ class InfraCloud:
             ssh=True,
             direct=True,
             template_hash=stack.template_hash,
+            label=label,
         )
 
         # result is a Response object or dict; SDK returns r.json() when raw=True
