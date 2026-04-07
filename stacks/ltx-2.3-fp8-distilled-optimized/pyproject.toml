@@ -1,0 +1,45 @@
+[project]
+name = "ltx-2.3-fp8-distilled-optimized-stack"
+version = "0.1.0"
+requires-python = ">=3.11"
+# Nota: torch y xformers NO se listan aquí — vienen pre-instalados
+# en la imagen vastai/pytorch, matcheados al CUDA del host.
+dependencies = [
+    "transformers==4.57.6",
+    "accelerate==1.7.0",
+    "einops==0.8.1",
+    "scipy==1.15.3",
+    "av==16.1.0",
+    "scikit-image==0.25.2",
+    "flashpack==0.2.0",
+    "fastapi==0.115.12",
+    "uvicorn[standard]==0.34.3",
+    "huggingface_hub[hf_transfer]==0.36.2",
+    "xformers==0.0.30",
+    "torchaudio==2.7.0",
+    "ltx-core",
+    "ltx-pipelines",
+]
+
+[tool.uv.sources]
+# LTX-2 packages pinned to a specific commit
+ltx-core = { git = "https://github.com/Lightricks/LTX-2.git", subdirectory = "packages/ltx-core", rev = "59ca828d5ae24358832ffd7003c2306fbceeba3a" }
+ltx-pipelines = { git = "https://github.com/Lightricks/LTX-2.git", subdirectory = "packages/ltx-pipelines", rev = "59ca828d5ae24358832ffd7003c2306fbceeba3a" }
+
+[tool.infracloud]
+description = "LTX 2.3 FP8 Distilled Optimized — torch.compile + TF32 + SDPA + warmup (22B, 48GB VRAM)"
+image = "vastai/pytorch:2.7.1-cuda-12.8.1-py311-24.04-2026-03-26"
+gpu_vram_gb = 48
+disk_gb = 200
+ports = [5000]
+entrypoint = "serve.py"
+health_url = "/health"
+min_cuda_ver = 12.8
+
+[tool.infracloud.env]
+HF_TOKEN = "${HF_TOKEN}"
+# torch.compile y TorchDynamo HABILITADOS (optimización de inferencia)
+PYTORCH_CUDA_ALLOC_CONF = "expandable_segments:True"
+HF_HUB_ENABLE_HF_TRANSFER = "1"
+# Triton cache para torch.compile — persiste entre reinicios en el disco del workspace
+TRITON_CACHE_DIR = "/workspace/.triton_cache"
