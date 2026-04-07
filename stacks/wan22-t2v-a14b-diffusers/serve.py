@@ -33,7 +33,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from huggingface_hub import snapshot_download
 
-from diffusers import WanPipeline, AutoencoderKLWan
+from diffusers import WanPipeline, AutoencoderKLWan, FlowMatchEulerDiscreteScheduler
 from diffusers.utils import export_to_video
 
 logging.basicConfig(level=logging.INFO)
@@ -97,6 +97,15 @@ async def lifespan(app: FastAPI):
         vae=vae,
         torch_dtype=torch.bfloat16,
     )
+
+    # Fix: UniPCMultistepScheduler tiene un bug de device mismatch (CPU/CUDA)
+    # en la versión de diffusers instalada desde git main. Usamos
+    # FlowMatchEulerDiscreteScheduler que es compatible con WAN y no tiene ese bug.
+    log.info("Aplicando scheduler fix (FlowMatchEulerDiscrete)…")
+    _pipe.scheduler = FlowMatchEulerDiscreteScheduler.from_config(
+        _pipe.scheduler.config
+    )
+
     _pipe.to("cuda")
 
     _log_vram("post-load")
