@@ -32,7 +32,7 @@ cp .env.example .env
 ## 1. Lanzar el servidor
 
 ```bash
-infracloud up ltx-video
+infracloud up ltx-2.3-fp8-distilled
 ```
 
 Esto hace automáticamente:
@@ -40,7 +40,7 @@ Esto hace automáticamente:
 2. Crea la instancia con imagen Docker pinada (`vastai/pytorch:2.7.1-cuda-12.8.1-py311-24.04-2026-03-26`) para reproducibilidad total
 3. Instala [uv](https://docs.astral.sh/uv/) en la instancia
 4. Clona el repositorio infracloud en `/workspace/infracloud`
-5. Ejecuta `uv sync --frozen` en `stacks/ltx-video/` — instala **todas las dependencias pinadas** del `uv.lock` (xformers, flashpack, ltx-core, ltx-pipelines y el resto) directamente en el venv pre-instalado con torch+CUDA
+5. Ejecuta `uv sync --frozen` en `stacks/ltx-2.3-fp8-distilled/` — instala **todas las dependencias pinadas** del `uv.lock` (xformers, flashpack, ltx-core, ltx-pipelines y el resto) directamente en el venv pre-instalado con torch+CUDA
 6. Descarga los checkpoints desde Hugging Face:
    - Modelo distilled 22B (`ltx-2.3-22b-distilled.safetensors`, ~50 GB)
    - Spatial upsampler ×2 (`ltx-2.3-spatial-upscaler-x2-1.1.safetensors`)
@@ -283,7 +283,7 @@ Este error ocurría con `torchaudio==2.11.0` (CUDA 13) en hosts con CUDA 12.x. E
 ### No hay GPU disponible con los requisitos
 ```bash
 # Prueba con una GPU de 40 GB (rendimiento reducido, puede haber OOM)
-infracloud up ltx-video --vram 40
+infracloud up ltx-2.3-fp8-distilled --vram 40
 ```
 
 ### Error de VRAM durante la generación
@@ -314,6 +314,6 @@ ls -lh /root/.cache/huggingface/hub/
 
 # Lanzar el servidor manualmente si falló
 source /venv/main/bin/activate
-cd /workspace/infracloud/stacks/ltx-video
+cd /workspace/infracloud/stacks/ltx-2.3-fp8-distilled
 python serve.py
 ```

@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [tool.infracloud]
+description = "WAN 2.2 T2V-A14B — text-to-video via diffusers (80GB VRAM)"
 image = "vastai/pytorch:2.7.1-cuda-12.8.1-py311-24.04-2026-03-26"
 gpu_vram_gb = 80
 disk_gb = 200

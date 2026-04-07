@@ -9,13 +9,13 @@ Usage (Python):
     from infracloud import InfraCloud
 
     cloud = InfraCloud()
-    server = cloud.up("ltx-video")   # blocks until server is ready
-    print(server.url)                # http://ssh5.vast.ai:38291
+    server = cloud.up("ltx-2.3-fp8-distilled")   # blocks until server is ready
+    print(server.url)                              # http://ssh5.vast.ai:38291
     server.down()                    # destroy and clean up
 
 Usage (CLI):
 
-    infracloud up ltx-video
+    infracloud up ltx-2.3-fp8-distilled
     infracloud url
     infracloud down
 """
@@ -99,7 +99,7 @@ class Server:
 
     Attributes:
         instance_id:  Vast.ai instance ID.
-        stack_name:   Name of the deployed Stack (e.g. "ltx-video").
+        stack_name:   Name of the deployed Stack (e.g. "ltx-2.3-fp8-distilled").
         ssh_host:     Hostname for SSH / HTTP access (e.g. "ssh5.vast.ai").
         ssh_port:     SSH port on the host.
         api_ports:    Mapping of internal container port → external host port.
@@ -149,7 +149,7 @@ class InfraCloud:
     Typical flow::
 
         cloud = InfraCloud()
-        server = cloud.up("ltx-video")
+        server = cloud.up("ltx-2.3-fp8-distilled")
         # ... do work ...
         cloud.down()
 
@@ -180,7 +180,7 @@ class InfraCloud:
 
         Args:
             stack:      A :class:`Stack` instance, or the name of a built-in
-                        stack (e.g. ``"ltx-video"``).
+                        stack (e.g. ``"ltx-2.3-fp8-distilled"``).
             offer_id:   Optional Vast.ai offer ID to use directly, skipping
                         the automatic search.
             **overrides: Optional field overrides applied to the resolved Stack
@@ -215,7 +215,7 @@ class InfraCloud:
 
         Args:
             stack:      A :class:`Stack` instance, or the name of a built-in
-                        stack (e.g. ``"ltx-video"``).
+                        stack (e.g. ``"ltx-2.3-fp8-distilled"``).
             offer_id:   Optional Vast.ai offer ID to use directly, skipping
                         the automatic search.
             **overrides: Optional field overrides applied to the resolved Stack
@@ -407,7 +407,7 @@ class InfraCloud:
             env_parts.append(f"-e {k}={v}")
         env_str = " ".join(env_parts) if env_parts else None
 
-        # Label format: "infracloud:ltx-video" — lets _find_active_instance()
+        # Label format: "infracloud:ltx-2.3-fp8-distilled" — lets _find_active_instance()
         # identify our instances without relying on local state.json.
         label = f"{self.LABEL_PREFIX}{stack.name}"
 

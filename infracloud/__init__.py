@@ -6,13 +6,13 @@ Typical usage:
     from infracloud import InfraCloud
 
     cloud = InfraCloud()
-    server = cloud.up("ltx-video")   # blocks until ready
+    server = cloud.up("ltx-2.3-fp8-distilled")   # blocks until ready
     print(server.url)
     server.down()
 
 Or via CLI:
 
-    infracloud up ltx-video
+    infracloud up ltx-2.3-fp8-distilled
     infracloud url
     infracloud down
 """

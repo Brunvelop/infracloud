@@ -477,7 +477,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ltx-video-stack"
+name = "ltx-2.3-fp8-distilled-stack"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

@@ -13,7 +13,7 @@ Commands:
 Examples:
 
     infracloud list
-    infracloud up ltx-video
+    infracloud up ltx-2.3-fp8-distilled
     infracloud up ./my-stack.yaml
     curl $(infracloud url)/generate -d '{"prompt": "a cat"}'
     infracloud ssh
@@ -105,12 +105,12 @@ def list_command() -> None:
 def up(stack: str, vram: int | None, disk: int | None, offer: int | None) -> None:
     """Lanza un servidor GPU y espera a que esté listo.
 
-    STACK puede ser el nombre de un stack built-in (ej: ltx-video) o la ruta
+    STACK puede ser el nombre de un stack built-in (ej: ltx-2.3-fp8-distilled) o la ruta
     a un archivo YAML que define un stack personalizado (ej: ./mi-stack.yaml).
 
     Para usar una oferta específica de Vast.ai (por ejemplo elegida desde la UI):
 
-        infracloud up ltx-video --offer 12345678
+        infracloud up ltx-2.3-fp8-distilled --offer 12345678
     """
     from infracloud.cloud import InfraCloud
     from infracloud.stack import Stack

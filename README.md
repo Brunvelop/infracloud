@@ -20,7 +20,7 @@ export VAST_API_KEY=tu_api_key_aqui
 # o cópiala en un archivo .env (ver .env.example)
 
 # 3. Lanzar servidor de generación de vídeo
-infracloud up ltx-video
+infracloud up ltx-2.3-fp8-distilled
 
 # Salida esperada:
 # 🔍 Buscando GPU con ≥48GB VRAM y CUDA ≥12.7...
@@ -60,8 +60,8 @@ infracloud down
 ### Opciones de `infracloud up`
 
 ```
-infracloud up ltx-video --vram 48    # override: buscar GPU con ≥48GB VRAM
-infracloud up ltx-video --disk 100   # override: solicitar 100GB de disco
+infracloud up ltx-2.3-fp8-distilled --vram 48    # override: buscar GPU con ≥48GB VRAM
+infracloud up ltx-2.3-fp8-distilled --disk 100   # override: solicitar 100GB de disco
 infracloud up ./mi-stack.yaml        # stack personalizado desde archivo YAML
 ```
 
@@ -86,7 +86,7 @@ from infracloud import InfraCloud
 cloud = InfraCloud()  # lee VAST_API_KEY del entorno
 
 # Lanzar servidor (bloquea hasta que está listo)
-server = cloud.up("ltx-video")
+server = cloud.up("ltx-2.3-fp8-distilled")
 
 print(server.url)          # http://ssh5.vast.ai:38291
 print(server.ssh_command)  # ssh -p 34567 root@ssh5.vast.ai
@@ -110,7 +110,7 @@ server.down()
 
 ```python
 # Pedir más VRAM para resoluciones más altas
-server = cloud.up("ltx-video", gpu_vram_gb=48, disk_gb=100)
+server = cloud.up("ltx-2.3-fp8-distilled", gpu_vram_gb=48, disk_gb=100)
 ```
 
 ---
@@ -242,15 +242,15 @@ server = InfraCloud().up(Stack.from_yaml("./mi-stack.yaml"))
 
 | Nombre | Modelo | VRAM | Puerto | Imagen base |
 |---|---|---|---|---|
-| `ltx-video` | [Lightricks/LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) — 22B | 48 GB | 5000 | `vastai/pytorch` |
+| `ltx-2.3-fp8-distilled` | [Lightricks/LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) — 22B | 48 GB | 5000 | `vastai/pytorch` |
 | `comfyui` | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | 32 GB | 8188 | `vastai/comfy` |
 
-### `ltx-video` — Generación de vídeo + audio
+### `ltx-2.3-fp8-distilled` — Generación de vídeo + audio
 
 Modelo distilled de 22B parámetros con FP8 quantization. Genera vídeo con audio sincronizado.
 
 ```bash
-infracloud up ltx-video
+infracloud up ltx-2.3-fp8-distilled
 
 # Generar un vídeo (una vez el servidor esté listo)
 curl -X POST $(infracloud url)/generate \
@@ -269,7 +269,7 @@ curl -X POST $(infracloud url)/generate \
 # }
 ```
 
-> Ver la [guía completa](docs/ltx-video.md) para más detalles, recetas y resolución de problemas.
+> Ver la [guía completa](docs/ltx-2.3-fp8-distilled.md) para más detalles, recetas y resolución de problemas.
 
 ### `comfyui` — Interfaz web de generación
 
@@ -288,8 +288,8 @@ Precios orientativos (varían según disponibilidad). Consulta [cloud.vast.ai](h
 
 | GPU | VRAM | Precio típico | Uso recomendado |
 |---|---|---|---|
-| RTX 3090 | 24 GB | ~$0.20–0.30/hr | ltx-video, modelos SD |
-| RTX 4090 | 24 GB | ~$0.30–0.50/hr | ltx-video, inferencia rápida |
+| RTX 3090 | 24 GB | ~$0.20–0.30/hr | ltx-2.3-fp8-distilled, modelos SD |
+| RTX 4090 | 24 GB | ~$0.30–0.50/hr | ltx-2.3-fp8-distilled, inferencia rápida |
 | RTX A6000 | 48 GB | ~$0.50–0.80/hr | Modelos grandes, mayor resolución |
 | A100 SXM | 80 GB | ~$1.50–2.50/hr | Entrenamiento, batch inference |
 | H100 SXM | 80 GB | ~$2.50–4.00/hr | Máximo rendimiento |
@@ -303,7 +303,7 @@ Precios orientativos (varían según disponibilidad). Consulta [cloud.vast.ai](h
 ```
 Desarrollador                        Vast.ai                      Instancia GPU
      │                                  │                               │
-     │  infracloud up ltx-video         │                               │
+     │  infracloud up ltx-2.3-fp8-distilled         │                               │
      │─────────────────────────────►    │                               │
      │  1. search_offers(vram≥48GB)     │                               │
      │  2. create_instance(             │                               │

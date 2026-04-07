@@ -72,7 +72,7 @@ class Stack:
     """Describes a deployable workload for a GPU server on Vast.ai.
 
     Attributes:
-        name:          Human-readable identifier (e.g. "ltx-video", "comfyui").
+        name:          Human-readable identifier (e.g. "ltx-2.3-fp8-distilled", "comfyui").
         image:         Docker image to use. Prefer vastai/base-image variants as
                        they are pre-cached on Vast.ai hosts for faster startup.
         gpu_vram_gb:   Minimum GPU VRAM in GB required by the workload.
@@ -102,8 +102,11 @@ class Stack:
                        argument so Vast.ai can auto-select the right CUDA
                        tag for the target host.  Leave as ``None`` for
                        plain Docker images where a full tag is specified.
+        description:   Short human-readable description shown in the UI
+                       (e.g. ``"LTX 2.3 FP8 Distilled — text-to-video"``).
+                       Set via ``description = "..."`` in ``[tool.infracloud]``.
         stack_dir:     Path of the stack directory relative to the repo root
-                       (e.g. ``"stacks/ltx-video"``). Set automatically by
+                       (e.g. ``"stacks/ltx-2.3-fp8-distilled"``). Set automatically by
                        :meth:`from_dir`. Used by :meth:`build_onstart` to know
                        where to ``cd`` after cloning the repo.
         entrypoint:    Python file to execute inside ``stack_dir`` after
@@ -133,6 +136,7 @@ class Stack:
     env: dict[str, str] = field(default_factory=dict)
     min_cuda_ver: float | None = None
     template_hash: str | None = None
+    description: str | None = None
     # ── Directory-based stack fields ──────────────────────────────────────────
     stack_dir: str | None = None
     entrypoint: str | None = None
@@ -166,7 +170,7 @@ class Stack:
         from this file: ``infracloud/stack.py`` → ``../../..`` → repo root).
 
         Args:
-            name: The stack name, e.g. ``"ltx-video"`` or ``"comfyui"``.
+            name: The stack name, e.g. ``"ltx-2.3-fp8-distilled"`` or ``"comfyui"``.
 
         Returns:
             A :class:`Stack` loaded from ``stacks/{name}/pyproject.toml``,
@@ -189,7 +193,7 @@ class Stack:
 
         Returns:
             Sorted list of stack names (directory names), e.g.
-            ``["comfyui", "ltx-video"]``.
+            ``["comfyui", "ltx-2.3-fp8-distilled", "wan22-t2v-a14b-diffusers"]``.
         """
         stacks_root = Path(__file__).resolve().parent.parent / "stacks"
         if not stacks_root.is_dir():
@@ -211,8 +215,8 @@ class Stack:
         - ``serve.py`` (or whatever ``entrypoint`` is set to) for uv stacks
         - ``onstart.sh`` for stacks with ``onstart_mode = "custom"``
 
-        The stack name is taken from the directory name (e.g. ``stacks/ltx-video``
-        → ``name="ltx-video"``).
+        The stack name is taken from the directory name (e.g. ``stacks/ltx-2.3-fp8-distilled``
+        → ``name="ltx-2.3-fp8-distilled"``).
 
         ``stack_dir`` is set to the path relative to the repository root. The repo
         root is detected by walking up from ``path`` until a directory containing
@@ -270,7 +274,7 @@ class Stack:
         known_fields = {
             "image", "template_hash", "gpu_vram_gb", "disk_gb", "ports",
             "health_url", "health_port", "min_cuda_ver", "entrypoint",
-            "onstart_mode", "repo_url",
+            "onstart_mode", "repo_url", "description",
         }
         kwargs: dict = {k: v for k, v in ic.items() if k in known_fields}
 

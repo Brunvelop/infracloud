@@ -1,5 +1,5 @@
 [project]
-name = "ltx-video-stack"
+name = "ltx-2.3-fp8-distilled-stack"
 version = "0.1.0"
 requires-python = ">=3.11"
 # Nota: torch y xformers NO se listan aquí — vienen pre-instalados
@@ -27,6 +27,7 @@ ltx-core = { git = "https://github.com/Lightricks/LTX-2.git", subdirectory = "pa
 ltx-pipelines = { git = "https://github.com/Lightricks/LTX-2.git", subdirectory = "packages/ltx-pipelines", rev = "59ca828d5ae24358832ffd7003c2306fbceeba3a" }
 
 [tool.infracloud]
+description = "LTX 2.3 FP8 Distilled — text-to-video + audio (22B, 48GB VRAM)"
 image = "vastai/pytorch:2.7.1-cuda-12.8.1-py311-24.04-2026-03-26"
 gpu_vram_gb = 48
 disk_gb = 200

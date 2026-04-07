@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [tool.infracloud]
+description = "ComfyUI — node-based image & video workflows"
 image = "vastai/comfy"
 template_hash = "7a57409b680b49a49a176abf22879b74"
 gpu_vram_gb = 32
