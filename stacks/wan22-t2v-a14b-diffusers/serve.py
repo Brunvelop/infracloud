@@ -18,6 +18,7 @@ import os
 import random
 import logging
 import tempfile
+import threading
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -56,6 +57,7 @@ DEFAULT_FPS = 16
 
 _pipe: Optional[WanPipeline] = None
 _model_ready: bool = False
+_generate_lock = threading.Lock()   # solo una generación a la vez (pipeline con estado)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -146,61 +148,72 @@ def generate(req: GenerateRequest):
     """Genera un vídeo MP4 a partir de un prompt de texto.
 
     Devuelve el vídeo directamente como bytes (Content-Type: video/mp4).
+    Solo una generación simultánea — las peticiones concurrentes reciben 429.
     """
     if not _model_ready:
         return JSONResponse(status_code=503, content={"error": "Modelo no listo"})
 
-    torch.cuda.reset_peak_memory_stats()
-    _log_vram("request-start")
-
-    seed = req.seed if req.seed is not None else random.randint(0, 2**31 - 1)
-    generator = torch.Generator("cuda").manual_seed(seed)
-
-    negative_prompt = (
-        req.negative_prompt
-        if req.negative_prompt is not None
-        else DEFAULT_NEGATIVE_PROMPT
-    )
-
-    log.info(
-        f"Generando: {req.width}x{req.height}, {req.num_frames} frames, "
-        f"{req.num_inference_steps} steps, seed={seed}"
-    )
-    log.info(f"Prompt: {req.prompt[:120]}…" if len(req.prompt) > 120 else f"Prompt: {req.prompt}")
-
-    _log_vram("pre-pipeline")
-
-    output = _pipe(
-        prompt=req.prompt,
-        negative_prompt=negative_prompt,
-        height=req.height,
-        width=req.width,
-        num_frames=req.num_frames,
-        guidance_scale=req.guidance_scale,
-        guidance_scale_2=req.guidance_scale_2,
-        num_inference_steps=req.num_inference_steps,
-        generator=generator,
-    )
-
-    frames = output.frames[0]   # lista de PIL Images o np.ndarray frames
-    _log_vram("post-pipeline")
-
-    # Exportar a MP4 y leer los bytes
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-        tmp_path = tmp.name
+    if not _generate_lock.acquire(blocking=False):
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Generación en curso. Reintenta cuando termine."},
+        )
 
     try:
-        export_to_video(frames, tmp_path, fps=req.fps)
-        with open(tmp_path, "rb") as f:
-            video_bytes = f.read()
+        torch.cuda.reset_peak_memory_stats()
+        _log_vram("request-start")
+
+        seed = req.seed if req.seed is not None else random.randint(0, 2**31 - 1)
+        generator = torch.Generator("cuda").manual_seed(seed)
+
+        negative_prompt = (
+            req.negative_prompt
+            if req.negative_prompt is not None
+            else DEFAULT_NEGATIVE_PROMPT
+        )
+
+        log.info(
+            f"Generando: {req.width}x{req.height}, {req.num_frames} frames, "
+            f"{req.num_inference_steps} steps, seed={seed}"
+        )
+        log.info(f"Prompt: {req.prompt[:120]}…" if len(req.prompt) > 120 else f"Prompt: {req.prompt}")
+
+        _log_vram("pre-pipeline")
+
+        output = _pipe(
+            prompt=req.prompt,
+            negative_prompt=negative_prompt,
+            height=req.height,
+            width=req.width,
+            num_frames=req.num_frames,
+            guidance_scale=req.guidance_scale,
+            guidance_scale_2=req.guidance_scale_2,
+            num_inference_steps=req.num_inference_steps,
+            generator=generator,
+        )
+
+        frames = output.frames[0]   # lista de PIL Images o np.ndarray frames
+        _log_vram("post-pipeline")
+
+        # Exportar a MP4 y leer los bytes
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            export_to_video(frames, tmp_path, fps=req.fps)
+            with open(tmp_path, "rb") as f:
+                video_bytes = f.read()
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+        _log_vram("post-encode")
+        log.info(f"✅ Vídeo generado: {len(video_bytes) / 1024:.1f} KB")
+
+        return Response(content=video_bytes, media_type="video/mp4")
+
     finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-
-    _log_vram("post-encode")
-    log.info(f"✅ Vídeo generado: {len(video_bytes) / 1024:.1f} KB")
-
-    return Response(content=video_bytes, media_type="video/mp4")
+        _generate_lock.release()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
