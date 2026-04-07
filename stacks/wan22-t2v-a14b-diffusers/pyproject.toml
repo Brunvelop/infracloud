@@ -1,0 +1,31 @@
+[project]
+name = "wan22-t2v-a14b-diffusers-stack"
+version = "0.1.0"
+requires-python = ">=3.11"
+# Nota: torch NO se lista aquí — viene pre-instalado en la imagen vastai/pytorch
+# diffusers se instala desde git main (la release de PyPI aún no soporta WAN 2.2)
+dependencies = [
+    "diffusers @ git+https://github.com/huggingface/diffusers.git",
+    "transformers>=4.50.0",
+    "accelerate>=1.0.0",
+    "sentencepiece>=0.2.0",
+    "imageio[ffmpeg]>=2.36.0",
+    "fastapi==0.115.12",
+    "uvicorn[standard]==0.34.3",
+    "huggingface_hub>=1.0.0",
+    "hf-transfer>=0.1.8",
+]
+
+[tool.infracloud]
+image = "vastai/pytorch:2.7.1-cuda-12.8.1-py311-24.04-2026-03-26"
+gpu_vram_gb = 80
+disk_gb = 200
+ports = [5000]
+entrypoint = "serve.py"
+health_url = "/health"
+min_cuda_ver = 12.8
+
+[tool.infracloud.env]
+HF_TOKEN = "${HF_TOKEN}"
+HF_HUB_ENABLE_HF_TRANSFER = "1"
+PYTORCH_CUDA_ALLOC_CONF = "expandable_segments:True"
