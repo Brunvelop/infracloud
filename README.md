@@ -244,6 +244,7 @@ server = InfraCloud().up(Stack.from_yaml("./mi-stack.yaml"))
 |---|---|---|---|---|
 | `ltx-2.3-fp8-distilled` | [Lightricks/LTX-2.3](https://huggingface.co/Lightricks/LTX-2.3) — 22B | 48 GB | 5000 | `vastai/pytorch` |
 | `comfyui` | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) | 32 GB | 8188 | `vastai/comfy` |
+| `comfyui-ltx23-10eros` | ComfyUI + [LTX 2.3 10Eros v1.2](https://huggingface.co/TenStrip/LTX2.3-10Eros) (NSFW) | 48 GB | 8188 | `vastai/comfy` |
 
 ### `ltx-2.3-fp8-distilled` — Generación de vídeo + audio
 
@@ -279,6 +280,23 @@ infracloud up comfyui
 # Abrir la interfaz en el navegador
 open $(infracloud url)
 ```
+
+### `comfyui-ltx23-10eros` — Vídeo NSFW con LTX Director (auto-provisionado)
+
+ComfyUI con el workflow **LTX Director v1.3** pre-cargado y el modelo **10Eros v1.2** (fine-tune NSFW de LTX 2.3). El stack instala automáticamente los ~17 custom node packs y descarga ~70 GB de modelos (10Eros, Gemma abliterada, VAEs, LoRAs, upscaler) desde HuggingFace.
+
+```bash
+infracloud up comfyui-ltx23-10eros
+# → la URL está disponible en ~2 min; los modelos se descargan en background (~30-50 min)
+
+open $(infracloud url)
+
+# Ver progreso del provisioning:
+infracloud ssh
+tail -f /var/log/provision.log
+```
+
+Requiere `HF_TOKEN` (con los términos de Gemma aceptados en HuggingFace) e `INFRACLOUD_REPO_URL` en el `.env`. El workflow queda en *Workflows → LTX23-10Eros-Director* dentro de la UI (refresca con `R` cuando terminen las descargas).
 
 ---
 

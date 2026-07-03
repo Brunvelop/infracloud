@@ -1,0 +1,25 @@
+[project]
+name = "comfyui-ltx23-10eros-stack"
+version = "0.1.0"
+requires-python = ">=3.11"
+# Usa la imagen pre-built vastai/comfy — no necesita deps adicionales
+dependencies = []
+
+[tool.infracloud]
+description = "ComfyUI + LTX 2.3 10Eros v1.2 (NSFW) — workflow LTX Director all-in-one auto-desplegado"
+image = "vastai/comfy"
+template_hash = "7a57409b680b49a49a176abf22879b74"
+gpu_vram_gb = 48
+disk_gb = 250
+ports = [8188]
+health_url = "/queue"
+min_cuda_ver = 12.9
+# Provisioning custom: arranca ComfyUI al instante y descarga nodos+modelos en background
+onstart_mode = "custom"
+
+[tool.infracloud.env]
+# Token de HuggingFace — necesario para modelos gated (Gemma) y descargas rápidas
+HF_TOKEN = "${HF_TOKEN}"
+HF_HUB_ENABLE_HF_TRANSFER = "1"
+# URL del repo infracloud — el onstart lo clona para leer models.txt/nodes.txt/workflow.json
+INFRACLOUD_REPO_URL = "${INFRACLOUD_REPO_URL}"

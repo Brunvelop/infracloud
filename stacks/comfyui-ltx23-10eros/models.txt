@@ -1,0 +1,26 @@
+# Modelos a descargar en la instancia — formato: URL | subcarpeta de models/ | nombre destino
+# Los nombres destino son EXACTAMENTE los que espera el workflow (algunos difieren del nombre en HF).
+# Las LoRAs van en subcarpetas (LTX2.3/, LTX2/) porque el workflow las referencia así.
+
+# --- Diffusion model: 10Eros v1.2 fp8 (32 GB) — el workflow espera el nombre de CivitAI ---
+https://huggingface.co/TenStrip/LTX2.3-10Eros/resolve/main/10Eros_v1.2_fp8mixed_learned.safetensors | diffusion_models | ltx2310eros_v12.safetensors
+
+# --- Mel-Band RoFormer (separación de voz para lipsync) ---
+https://huggingface.co/Kijai/MelBandRoFormer_comfy/resolve/main/MelBandRoformer_fp16.safetensors | diffusion_models | MelBandRoformer_fp16.safetensors
+
+# --- Latent upscaler x2 ---
+https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors | latent_upscale_models | ltx-2.3-spatial-upscaler-x2-1.1.safetensors
+
+# --- Text encoders (Gemma abliterada para prompt enhancer NSFW) ---
+https://huggingface.co/DreamFast/gemma-3-12b-it-heretic-v2/resolve/main/comfyui/gemma-3-12b-it-heretic-v2_fp8_e4m3fn.safetensors | text_encoders | gemma-3-12b-it-heretic-v2_fp8_e4m3fn.safetensors
+https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/text_encoders/ltx-2.3_text_projection_bf16.safetensors | text_encoders | ltx-2.3_text_projection_bf16.safetensors
+
+# --- VAE (vídeo + audio) ---
+https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_video_vae_bf16.safetensors | vae | LTX23_video_vae_bf16.safetensors
+https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_audio_vae_bf16.safetensors | vae | LTX23_audio_vae_bf16.safetensors
+
+# --- Core LoRAs ---
+https://huggingface.co/TenStrip/LTX2.3_Distilled_Lora_1.1_Experiments/resolve/main/ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors | loras/LTX2.3 | ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors
+https://huggingface.co/Comfy-Org/ltx-2.3/resolve/main/split_files/loras/ltx-2.3-id-lora-celebvhq-3k.safetensors | loras/LTX2.3 | LTX-2_3-ID-LoRA-CelebVHQ-3K.safetensors
+https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Detailer/resolve/main/ltx-2-19b-ic-lora-detailer.safetensors | loras/LTX2 | ltx-2-19b-ic-lora-detailer.safetensors
+https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control/resolve/main/ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors | loras/LTX2.3 | ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors

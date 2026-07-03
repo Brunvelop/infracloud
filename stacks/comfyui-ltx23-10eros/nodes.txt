@@ -1,0 +1,25 @@
+# Custom node packs requeridos por el workflow — formato: cnr_id | git_url (fallback)
+# El cnr_id es el identificador del ComfyUI-Manager registry (extraído del propio workflow JSON).
+# Estrategia: primero cm-cli install <cnr_id>; si falla y hay git_url, clonado manual.
+
+ComfyUI-LTXVideo | https://github.com/Lightricks/ComfyUI-LTXVideo
+WhatDreamsCost-ComfyUI | https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI
+comfyui-kjnodes | https://github.com/kijai/ComfyUI-KJNodes
+rgthree-comfy | https://github.com/rgthree/rgthree-comfy
+comfyui-easy-use | https://github.com/yolain/ComfyUI-Easy-Use
+comfyui-videohelpersuite | https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite
+comfyui-frame-interpolation | https://github.com/Fannovel16/ComfyUI-Frame-Interpolation
+comfyui_controlnet_aux | https://github.com/Fannovel16/comfyui_controlnet_aux
+comfyui-custom-scripts | https://github.com/pythongosssss/ComfyUI-Custom-Scripts
+cg-use-everywhere | https://github.com/chrisgoringe/cg-use-everywhere
+comfyui-impact-pack | https://github.com/ltdrdata/ComfyUI-Impact-Pack
+comfyui_layerstyle | https://github.com/chflame163/ComfyUI_LayerStyle
+comfyui-melbandroformer | https://github.com/kijai/ComfyUI-MelBandRoFormer
+comfyui-resolution-master | https://github.com/Azornes/Comfyui-Resolution-Master
+
+# Packs menores usados por nodos auxiliares (timer, contador de frames) — vía registry
+crt-nodes |
+listhelper |
+
+# Nodo NVIDIA RTX VSR (upscaler opcional, bypassed por defecto en el workflow)
+comfyui_nvidia_rtx_nodes |
